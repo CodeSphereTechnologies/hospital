@@ -107,10 +107,10 @@ describe('AdminDashboardPage', () => {
     expect(screen.getByText(/total activities/i)).toBeInTheDocument()
     expect(screen.getByText(/total reports/i)).toBeInTheDocument()
 
-    expect(screen.getByText('248')).toBeInTheDocument()
-    expect(screen.getByText('18')).toBeInTheDocument()
-    expect(screen.getByText('1,142')).toBeInTheDocument()
-    expect(screen.getByText('92')).toBeInTheDocument()
+    expect(await screen.findByText('248')).toBeInTheDocument()
+    expect(await screen.findByText('18')).toBeInTheDocument()
+    expect(await screen.findByText('1,142')).toBeInTheDocument()
+    expect(await screen.findByText('92')).toBeInTheDocument()
   })
 
   it('renders the Activity Overview section with dropdown and legend', async () => {

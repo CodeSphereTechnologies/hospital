@@ -10,8 +10,11 @@ use App\Http\Resources\DailyReportResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\DailyReport;
 use App\Models\Notification;
+use App\Enums\ActivityLogAction;
 use App\Enums\NotificationType;
+use App\Services\ActivityLogger;
 use App\Support\Csv;
+use App\Support\Search;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +22,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
+    public function __construct(private readonly ActivityLogger $activityLogger) {}
+
     /**
      * List daily reports with server-side search, status and date filters.
      */
@@ -85,6 +90,14 @@ class ReportController extends Controller
 
         $report->load(['user.groups', 'activities'])->loadCount('comments');
 
+        $this->activityLogger->record(
+            ActivityLogAction::ReportStatusUpdated,
+            ($request->user()?->name ?? 'An administrator').' marked the report for '.$report->report_date?->toDateString().' as '.$validated['status'].'.',
+            $request->user(),
+            $report,
+            ['status' => $validated['status']],
+        );
+
         return ApiResponse::success([
             'report' => new DailyReportResource($report),
         ], 'Report status updated.');
@@ -113,6 +126,13 @@ class ReportController extends Controller
                 'sent_at' => now(),
             ]);
         }
+
+        $this->activityLogger->record(
+            ActivityLogAction::ReportCommentAdded,
+            ($request->user()?->name ?? 'An administrator').' left feedback on the report for '.$report->report_date?->toDateString().'.',
+            $request->user(),
+            $report,
+        );
 
         return ApiResponse::success(
             new AdminReportCommentResource($comment->load('author')),
@@ -167,15 +187,15 @@ class ReportController extends Controller
             ->with('user')
             ->withCount('comments')
             ->when($filters['q'] ?? null, function (Builder $query, string $search): void {
-                $like = '%'.str_replace(['%', '_'], ['\%', '\_'], trim($search)).'%';
+                $pattern = Search::likePattern($search);
 
-                $query->where(function (Builder $query) use ($like): void {
-                    $query->where('summary', 'like', $like)
-                        ->orWhere('self_assessment', 'like', $like)
-                        ->orWhereHas('user', function (Builder $user) use ($like): void {
-                            $user->where('name', 'like', $like)
-                                ->orWhere('email', 'like', $like);
-                        });
+                $query->where(function (Builder $query) use ($pattern): void {
+                    Search::whereInsensitiveLike($query, 'summary', $pattern);
+                    Search::whereInsensitiveLike($query, 'self_assessment', $pattern, 'or');
+                    $query->orWhereHas(
+                        'user',
+                        fn (Builder $user) => Search::whereAnyInsensitiveLike($user, ['name', 'email'], $pattern),
+                    );
                 });
             })
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))

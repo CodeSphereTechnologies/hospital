@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   ArrowRight,
-  ArrowUpRight,
   BarChart3,
   BookOpen,
   CalendarDays,
@@ -12,8 +11,8 @@ import {
   Droplets,
   Dumbbell,
   FileText,
-  Users,
-  UsersRound,
+  Moon,
+  Sparkles,
   type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '../../features/auth/useAuth'
@@ -21,52 +20,46 @@ import { MosqueIllustration, StarPattern } from '../../components/shared/MosqueI
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { BarChart } from '../../components/charts/Charts'
-import { activitiesApi } from '../../lib/api/endpoints'
-import { todaySchedule as mockSchedule } from '../../lib/mockData'
+import { activitiesApi, dashboardApi, type DashboardProgress } from '../../lib/api/endpoints'
 import { formatDate } from '../../lib/format'
 import { cn } from '../../lib/utils'
 import '../../styles/user-dashboard.css'
 
-interface UserMetric {
-  key: string
+interface ProgressCard {
+  key: keyof DashboardProgress
   label: string
-  value: number
-  change: number
+  description: string
   icon: LucideIcon
   colorClass: 'green' | 'purple' | 'orange' | 'blue'
 }
 
-const userMetrics: UserMetric[] = [
+const progressCards: ProgressCard[] = [
   {
-    key: 'users',
-    label: 'Total Users',
-    value: 248,
-    change: 12,
-    icon: Users,
+    key: 'prayer',
+    label: 'Prayer Progress',
+    description: 'Daily prayers completed',
+    icon: Moon,
     colorClass: 'green',
   },
   {
-    key: 'groups',
-    label: 'Total Groups',
-    value: 18,
-    change: 0,
-    icon: UsersRound,
+    key: 'quran',
+    label: 'Quran Progress',
+    description: 'Quran activities completed',
+    icon: BookOpen,
     colorClass: 'purple',
   },
   {
-    key: 'activities',
-    label: 'Total Activities',
-    value: 1142,
-    change: 15,
-    icon: CalendarDays,
+    key: 'exercise',
+    label: 'Exercise Progress',
+    description: 'Exercise activities completed',
+    icon: Dumbbell,
     colorClass: 'orange',
   },
   {
-    key: 'reports',
-    label: 'Total Reports',
-    value: 92,
-    change: 10,
-    icon: FileText,
+    key: 'other',
+    label: 'Other Activities',
+    description: 'Other daily activities completed',
+    icon: Sparkles,
     colorClass: 'blue',
   },
 ]
@@ -131,11 +124,19 @@ export function UserDashboardPage() {
 
   const displayName = user?.name?.trim() ? user.name.split(' ')[0] : 'Hamza'
 
+  const progressQuery = useQuery({
+    queryKey: ['dashboard', 'progress'],
+    queryFn: () => dashboardApi.progress(),
+    staleTime: 60_000,
+  })
+
   const { data: userActivities } = useQuery({
     queryKey: ['activities', 'today'],
     queryFn: () => activitiesApi.list(),
     staleTime: 60_000,
   })
+
+  const progress = progressQuery.data?.progress
 
   // Derive today's plan items, combining core featured items with user's activities
   const planItems: PlanItem[] = [...defaultPlanItems]
@@ -154,20 +155,6 @@ export function UserDashboardPage() {
         current: extraActivity.status === 'completed' ? 1 : 0,
         target: 1,
         unit: extraActivity.status === 'completed' ? 'done' : 'pending',
-      })
-    }
-  } else if (mockSchedule.length > 0) {
-    const prayer = mockSchedule.find((a) => a.activity_type === 'prayer')
-    if (prayer) {
-      planItems.push({
-        id: prayer.id,
-        title: prayer.title,
-        subtitle: `${prayer.start_time} - ${prayer.end_time}`,
-        icon: CheckCircle2,
-        accent: 'purple',
-        current: prayer.status === 'completed' ? 1 : 0,
-        target: 1,
-        unit: prayer.status === 'completed' ? 'done' : 'due',
       })
     }
   }
@@ -214,28 +201,29 @@ export function UserDashboardPage() {
         </div>
       </section>
 
-      {/* 2. Four Summary Metric Cards in a single horizontal row */}
-      <section className="user-metrics-row" aria-label="Summary statistics">
-        {userMetrics.map((metric) => {
-          const Icon = metric.icon
+      {/* 2. Four personal-progress cards in a single horizontal row */}
+      <section className="user-metrics-row" aria-label="Your progress">
+        {progressCards.map((card) => {
+          const Icon = card.icon
+          const metric = progress?.[card.key]
+          const loaded = metric !== undefined
+          const percentage = loaded ? `${metric.percentage}%` : '--%'
+          const sub = loaded
+            ? `${metric.completed} of ${metric.total} activities completed`
+            : card.description
           return (
             <article
-              key={metric.key}
-              className={cn('user-metric-card', `user-metric-card--${metric.colorClass}`)}
+              key={card.key}
+              className={cn('user-metric-card', `user-metric-card--${card.colorClass}`)}
             >
               <div className="user-metric-card__top">
                 <span className="user-metric-card__icon">
                   <Icon className="h-5 w-5" />
                 </span>
-                <span className="user-metric-card__trend">
-                  <ArrowUpRight className="h-3 w-3" />
-                  +{metric.change}%
-                </span>
               </div>
-              <p className="user-metric-card__label">{metric.label}</p>
-              <div className="user-metric-card__figure">
-                <strong>{metric.value.toLocaleString()}</strong>
-              </div>
+              <p className="user-metric-card__label">{card.label}</p>
+              <div className="user-metric-card__figure">{percentage}</div>
+              <p className="user-metric-card__sub">{sub}</p>
             </article>
           )
         })}

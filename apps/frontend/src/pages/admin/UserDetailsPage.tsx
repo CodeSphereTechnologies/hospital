@@ -203,57 +203,76 @@ export function UserDetailsPage() {
         Back to users
       </Link>
 
-      <Card className="overflow-hidden">
-        <div className="relative h-24 bg-gradient-to-r from-brand-700 to-brand-900">
-          <div className="pattern-dots absolute inset-0 opacity-30" />
-        </div>
-        <CardContent className="-mt-10 p-5 pt-0 sm:p-6 sm:pt-0">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex items-end gap-4">
-              <Avatar name={profile.name} size="xl" className="ring-4 ring-white" />
-              <div className="pb-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-xl font-bold tracking-tight text-slate-900">{profile.name}</h1>
-                  <UserStatusBadge status={profile.status} />
-                  <Badge variant={profile.role === 'admin' ? 'default' : 'secondary'}>
-                    {profile.role === 'admin' ? 'Administrator' : 'Member'}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-sm text-slate-500">{profile.email}</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 pb-1">
-              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-                <Pencil className="h-3.5 w-3.5" />
-                Edit profile
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toggleStatus.mutate()}
-                isLoading={toggleStatus.isPending}
-                className={isActive ? 'text-amber-700' : 'text-emerald-700'}
-              >
-                <UserX className="h-3.5 w-3.5" />
-                {isActive ? 'Deactivate' : 'Activate account'}
-              </Button>
-              <Button
-                variant={isSuspended ? 'outline' : 'destructive'}
-                size="sm"
-                onClick={() => setSuspendOpen(true)}
-                className={isSuspended ? 'text-emerald-700' : undefined}
-              >
-                {isSuspended ? (
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                ) : (
-                  <Ban className="h-3.5 w-3.5" />
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-700 to-brand-900 p-6 text-white shadow-card sm:p-8">
+        <div className="pattern-dots pointer-events-none absolute inset-0 opacity-25" />
+        <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <Avatar
+              name={profile.name}
+              src={profile.avatar_url}
+              size="xl"
+              className="h-20 w-20 ring-4 ring-white/20 shadow-md shrink-0 text-2xl"
+            />
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-50">
+                  {profile.role === 'admin' ? 'Administrator' : 'Member'}
+                </span>
+                <UserStatusBadge status={profile.status} />
+                {isSuspended && (
+                  <span className="rounded-full border border-rose-400/40 bg-rose-500/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-rose-100">
+                    Suspended
+                  </span>
                 )}
-                {isSuspended ? 'Unsuspend user' : 'Suspend user'}
-              </Button>
+              </div>
+              <h1 className="mt-2 text-2xl font-bold tracking-tight text-white">{profile.name}</h1>
+              <p className="mt-1 text-sm text-brand-100/90">{profile.email}</p>
+              <p className="mt-2 text-xs text-brand-200">
+                Group: {profile.group || 'No group'} · Joined{' '}
+                {profile.joined_at ? formatDate(profile.joined_at) : 'recently'}
+              </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="bg-white text-brand-800 hover:bg-brand-50 shadow-sm"
+              onClick={() => setEditOpen(true)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edit profile
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className={
+                isActive
+                  ? 'border border-white/25 bg-white/10 text-white hover:bg-white/20 shadow-sm'
+                  : 'bg-emerald-500 text-white hover:bg-emerald-600 border-none shadow-sm'
+              }
+              onClick={() => toggleStatus.mutate()}
+              isLoading={toggleStatus.isPending}
+            >
+              <UserX className="h-3.5 w-3.5" />
+              {isActive ? 'Deactivate' : 'Activate account'}
+            </Button>
+            <Button
+              variant={isSuspended ? 'secondary' : 'destructive'}
+              size="sm"
+              className={isSuspended ? 'bg-white text-emerald-800 hover:bg-brand-50 shadow-sm' : 'shadow-sm'}
+              onClick={() => setSuspendOpen(true)}
+            >
+              {isSuspended ? (
+                <ShieldCheck className="h-3.5 w-3.5" />
+              ) : (
+                <Ban className="h-3.5 w-3.5" />
+              )}
+              {isSuspended ? 'Unsuspend user' : 'Suspend user'}
+            </Button>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="Activities logged" value={profile.activities ?? 0} icon={CheckCircle2} hint="all time" />
@@ -284,26 +303,26 @@ export function UserDetailsPage() {
             </CardHeader>
             <CardContent className="space-y-5">
               <p className="text-sm leading-relaxed text-slate-600">
-                {profile.bio ?? 'No profile summary yet.'}
+                {profile.bio?.trim() || 'No profile summary yet.'}
               </p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {[
                   { icon: Mail, label: 'Email', value: profile.email },
-                  { icon: Phone, label: 'Phone', value: profile.phone ?? 'Not provided' },
-                  { icon: MapPin, label: 'Location', value: profile.location ?? 'Not provided' },
-                  { icon: ShieldCheck, label: 'Group', value: profile.group ?? 'No group' },
+                  { icon: Phone, label: 'Phone', value: profile.phone?.trim() || 'Not provided' },
+                  { icon: MapPin, label: 'Location', value: profile.location?.trim() || 'Not provided' },
+                  { icon: ShieldCheck, label: 'Group', value: profile.group || 'No group' },
                   { icon: CalendarDays, label: 'Joined', value: formatDate(profile.joined_at) },
                   { icon: ClipboardList, label: 'Reports', value: `${profile.reports ?? 0} submitted` },
                 ].map((item) => {
                   const Icon = item.icon
                   return (
                     <div key={item.label} className="flex items-start gap-2.5 rounded-xl border border-slate-100 p-3">
-                      <Icon className="mt-0.5 h-4 w-4 text-brand-600" />
+                      <Icon className="mt-0.5 h-4 w-4 text-brand-600 shrink-0" />
                       <div className="min-w-0">
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                           {item.label}
                         </p>
-                        <p className="truncate text-sm text-slate-700">{item.value}</p>
+                        <p className="truncate text-sm text-slate-700" title={item.value}>{item.value}</p>
                       </div>
                     </div>
                   )

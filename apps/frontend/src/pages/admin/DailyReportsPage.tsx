@@ -193,9 +193,22 @@ export function DailyReportsPage() {
                   <TableRow key={report.id}>
                     <TableCell>
                       <div className="flex items-center gap-2.5">
-                        <Avatar name={report.user_name ?? 'Member'} size="sm" />
+                        <Avatar
+                          name={report.user_name ?? 'Member'}
+                          src={report.user_avatar_url ?? undefined}
+                          size="sm"
+                        />
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-800">{report.user_name}</p>
+                          {report.user_id ? (
+                            <Link
+                              to={`/admin/users/${report.user_id}`}
+                              className="block truncate text-sm font-semibold text-slate-800 hover:text-brand-700 hover:underline"
+                            >
+                              {report.user_name}
+                            </Link>
+                          ) : (
+                            <p className="truncate text-sm font-semibold text-slate-800">{report.user_name}</p>
+                          )}
                           <p className="truncate text-xs text-slate-500">{report.user_email}</p>
                         </div>
                       </div>

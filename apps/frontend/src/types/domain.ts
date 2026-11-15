@@ -54,6 +54,7 @@ export interface AdminUser {
   email: string
   role: 'admin' | 'user'
   status: UserStatus
+  avatar_url?: string | null
   is_active?: boolean
   is_suspended?: boolean
   suspended_at?: string | null
@@ -77,6 +78,7 @@ export interface DailyReport {
   user_id: number
   user_name?: string
   user_email?: string
+  user_avatar_url?: string | null
   report_date: string
   summary?: string | null
   self_assessment?: string | null
@@ -88,6 +90,7 @@ export interface DailyReport {
   reviewed_at?: string | null
   submitted_at?: string | null
   activities?: DailyReportActivity[]
+  comments?: ReportComment[]
   created_at?: string
 }
 
@@ -102,7 +105,9 @@ export interface DailyReportActivity {
 
 export interface ReportComment {
   id: number
-  author: string
+  author?: string | { name?: string; email?: string; avatar_url?: string | null }
+  author_name?: string
+  avatar_url?: string | null
   role?: string
   comment: string
   created_at: string

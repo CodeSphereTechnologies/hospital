@@ -38,6 +38,47 @@ export interface AdminActivityStats {
   missed: number
 }
 
+export interface AdminActivityLogStats {
+  total: number
+  today: number
+  week: number
+  members: number
+}
+
+export interface AdminActivityLog {
+  id: number
+  uuid?: string
+  action: string
+  action_label: string
+  category: string
+  description: string
+  actor: {
+    id: number
+    name: string
+    email?: string
+    avatar_url?: string | null
+    role?: string
+  } | null
+  subject_type?: string | null
+  subject_id?: number | null
+  properties?: Record<string, unknown> | null
+  ip_address?: string | null
+  user_agent?: string | null
+  created_at: string
+}
+
+export interface AdminActivityLogFilters {
+  actions: { value: string; label: string }[]
+  users: { value: number; label: string }[]
+}
+
+export interface AdminActivityLogResult {
+  items: AdminActivityLog[]
+  stats: AdminActivityLogStats
+  filters: AdminActivityLogFilters
+  meta: PaginationMeta
+}
+
 export interface AdminPagedResult<T, Stats> {
   items: T[]
   stats: Stats
@@ -131,6 +172,19 @@ export interface AdminGroupInput {
   leader?: string | null
   color?: string | null
   member_ids?: number[]
+}
+
+export interface AdminActivityInput {
+  title: string
+  description?: string | null
+  activity_type?: ActivityType
+  scheduled_date: string
+  start_time?: string | null
+  end_time?: string | null
+  status?: 'pending' | 'completed' | 'missed'
+  reminder_enabled?: boolean
+  user_ids?: number[]
+  group_id?: number | null
 }
 
 type QueryValue = string | number | boolean | undefined | null
@@ -297,6 +351,13 @@ export const adminApi = {
       )
       return response.data.group
     },
+    addMembers: async (id: number | string, userIds: number[]): Promise<Group> => {
+      const response = await apiClient.post<ApiEnvelope<{ group: Group }>>(
+        `/api/v1/admin/groups/${id}/members`,
+        { user_ids: userIds }
+      )
+      return response.data.group
+    },
     export: (params?: { q?: string }) =>
       downloadCsv(`/api/v1/admin/groups/export${query(params)}`, `groups-${stamp()}.csv`),
   },
@@ -359,7 +420,45 @@ export const adminApi = {
       )
       return response.data.activity
     },
+    create: async (payload: AdminActivityInput): Promise<Activity> => {
+      const response = await apiClient.post<
+        ApiEnvelope<{ activity: Activity; activities: Activity[]; created_count: number }>
+      >('/api/v1/admin/activities', payload)
+      return response.data.activity
+    },
     export: (params?: { q?: string; type?: string; status?: string; user_id?: number | string }) =>
       downloadCsv(`/api/v1/admin/activities/export${query(params)}`, `activities-${stamp()}.csv`),
+  },
+
+  activityLogs: async (params?: {
+    q?: string
+    action?: string
+    category?: string
+    user_id?: number | string
+    from?: string
+    to?: string
+    page?: number
+    per_page?: number
+  }): Promise<AdminActivityLogResult> => {
+    const response = await apiClient.get<
+      ApiEnvelope<{
+        items: AdminActivityLog[]
+        stats: AdminActivityLogStats
+        filters: AdminActivityLogFilters
+      }>
+    >(`/api/v1/admin/activity-logs${query(params)}`)
+
+    return {
+      items: response.data?.items ?? [],
+      stats: response.data?.stats ?? { total: 0, today: 0, week: 0, members: 0 },
+      filters: response.data?.filters ?? { actions: [], users: [] },
+      meta:
+        response.meta ?? {
+          current_page: 1,
+          per_page: response.data?.items?.length ?? 0,
+          total: response.data?.items?.length ?? 0,
+          last_page: 1,
+        },
+    }
   },
 }

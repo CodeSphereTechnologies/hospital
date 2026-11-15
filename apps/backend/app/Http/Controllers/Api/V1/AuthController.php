@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\ActivityLogAction;
 use App\Enums\PrayerCalculationMethod;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
@@ -15,6 +16,7 @@ use App\Http\Resources\UserResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\User;
 use App\Models\UserPrayerPreference;
+use App\Services\ActivityLogger;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -24,11 +26,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
+    public function __construct(private readonly ActivityLogger $activityLogger) {}
+
     /**
      * Authenticate a user and issue a Sanctum personal access token.
      */
@@ -66,6 +71,13 @@ class AuthController extends Controller
         $token = $user->createToken($deviceName, $abilities);
 
         $user->load('prayerPreference');
+
+        $this->activityLogger->record(
+            ActivityLogAction::Login,
+            $user->name.' signed in.',
+            $user,
+            $user,
+        );
 
         return ApiResponse::success([
             'user' => new UserResource($user),
@@ -120,6 +132,13 @@ class AuthController extends Controller
         }
 
         $user->load('prayerPreference');
+
+        $this->activityLogger->record(
+            ActivityLogAction::Registered,
+            $user->name.' registered a new account.',
+            $user,
+            $user,
+        );
 
         return ApiResponse::success([
             'user' => new UserResource($user),
@@ -228,9 +247,41 @@ class AuthController extends Controller
 
         $user->refresh()->load('prayerPreference');
 
+        $this->activityLogger->record(
+            ActivityLogAction::ProfileUpdated,
+            $user->name.' updated their profile.',
+            $user,
+            $user,
+        );
+
         return ApiResponse::success([
             'user' => new UserResource($user),
         ], 'Profile updated successfully.');
+    }
+
+    /**
+     * Upload or replace the authenticated user's profile picture.
+     */
+    public function updateAvatar(Request $request): JsonResponse
+    {
+        $request->validate([
+            'avatar' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ]);
+
+        $user = $request->user();
+
+        if ($user->avatar_path !== null) {
+            Storage::disk('public')->delete($user->avatar_path);
+        }
+
+        $user->avatar_path = $request->file('avatar')->store('avatars', 'public');
+        $user->save();
+
+        $user->load('prayerPreference');
+
+        return ApiResponse::success([
+            'user' => new UserResource($user),
+        ], 'Profile picture updated.');
     }
 
     /**
@@ -254,6 +305,13 @@ class AuthController extends Controller
         if ($currentToken instanceof PersonalAccessToken) {
             $user->tokens()->where('id', '!=', $currentToken->getKey())->delete();
         }
+
+        $this->activityLogger->record(
+            ActivityLogAction::PasswordUpdated,
+            $user->name.' changed their password.',
+            $user,
+            $user,
+        );
 
         return ApiResponse::success(null, 'Password updated successfully.');
     }
@@ -322,6 +380,17 @@ class AuthController extends Controller
             ]);
         }
 
+        $resetUser = User::query()->where('email', $request->string('email')->toString())->first();
+
+        if ($resetUser !== null) {
+            $this->activityLogger->record(
+                ActivityLogAction::PasswordReset,
+                $resetUser->name.' reset their password.',
+                $resetUser,
+                $resetUser,
+            );
+        }
+
         return ApiResponse::success(null, 'Password reset successfully.');
     }
 
@@ -332,6 +401,15 @@ class AuthController extends Controller
     {
         $user = $request->user();
         $currentToken = $user?->currentAccessToken();
+
+        if ($user !== null) {
+            $this->activityLogger->record(
+                ActivityLogAction::Logout,
+                $user->name.' signed out.',
+                $user,
+                $user,
+            );
+        }
 
         if ($currentToken instanceof PersonalAccessToken) {
             $currentToken->delete();

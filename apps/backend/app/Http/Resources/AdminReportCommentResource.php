@@ -20,6 +20,7 @@ class AdminReportCommentResource extends JsonResource
             'id' => $this->id,
             'author' => $author?->name ?? 'Administrator',
             'role' => $author?->role?->value === 'admin' ? 'Administrator' : 'Member',
+            'avatar_url' => $author?->avatar_url,
             'comment' => $this->comment,
             'created_at' => $this->created_at?->toIso8601String(),
         ];

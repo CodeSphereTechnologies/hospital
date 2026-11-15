@@ -37,7 +37,7 @@ export function StatCard({
   return (
     <div
       className={cn(
-        'group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-soft transition-shadow hover:shadow-card',
+        'group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-soft transition-shadow hover:shadow-card',
         className
       )}
     >

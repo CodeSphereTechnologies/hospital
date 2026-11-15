@@ -472,6 +472,7 @@ Recommended Eloquent models:
 | `DailyReport` | belongsTo user; hasMany comments and optional activity snapshots |
 | `ActivityComment` | belongsTo activity and author |
 | `DailyReportComment` | belongsTo daily report and author |
+| `ActivityLog` | belongsTo actor (`User`); morphTo subject record |
 | `ReadingRecord` | belongsTo user, if implemented |
 
 Use explicit relationship names and avoid exposing unrestricted model serialization from API endpoints.
@@ -1021,6 +1022,44 @@ Store device tokens required for push notifications.
 - Logout and device removal must follow the approved token lifecycle.
 
 **Pending Decision:** Confirm whether Firebase is being used only for FCM notifications or whether other Firebase services are also required. The Laravel + PostgreSQL architecture remains the primary application backend and database unless the project scope is formally changed.
+
+---
+
+## 15.7 Activity Logs
+
+Stores the system audit trail surfaced on the admin **Activity Logs** page. Each row records
+one business action (a sign-in, a report submission, an administrative edit, and so on)
+together with the actor, the affected record, and request metadata.
+
+### activity_logs
+
+| Column | Type | Description |
+|---|---|---|
+| id | BIGINT | Primary key |
+| uuid | UUID | Stable public identifier |
+| user_id | BIGINT NULL | Acting user; null for system entries |
+| action | VARCHAR(60) | Action value from `ActivityLogAction` |
+| description | VARCHAR(500) | Human-readable summary of the action |
+| subject_type | VARCHAR(255) NULL | Morph class of the affected record |
+| subject_id | BIGINT NULL | Key of the affected record |
+| properties | JSON NULL | Extra structured context |
+| ip_address | VARCHAR(45) NULL | Request IP address |
+| user_agent | VARCHAR(500) NULL | Request user agent |
+| source | VARCHAR(20) DEFAULT 'app' | `app` for live rows, `backfill` for historical rows |
+| created_at | TIMESTAMP | When the action occurred |
+| updated_at | TIMESTAMP | Update timestamp |
+
+**Database Rules:**
+- `user_id` is nullable and uses `nullOnDelete`, so deleting a member keeps their audit
+  history while clearing the link.
+- Entries are append-only; they are never edited through the application.
+- `subject_type`/`subject_id` form a polymorphic reference to the affected record and may be
+  null when the action has no single subject.
+- The migration `2026_11_15_000003_backfill_activity_logs` seeds historical registrations,
+  report submissions, report comments, and group creations with `source = 'backfill'`; its
+  `down()` removes exactly those rows.
+- Indexed on `user_id`, `action`, `created_at`, and `(subject_type, subject_id)` to keep the
+  admin filters and pagination responsive.
 
 ---
 

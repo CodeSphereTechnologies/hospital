@@ -4,8 +4,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
   CalendarDays,
+  Check,
   CheckCircle2,
   Plus,
+  Search,
   Target,
   UserPlus,
   Users,
@@ -20,11 +22,14 @@ import { Avatar } from '../../components/ui/Avatar'
 import { Progress, CircularProgress } from '../../components/ui/Progress'
 import { Modal } from '../../components/ui/Modal'
 import { Input } from '../../components/ui/Input'
+import { Tabs } from '../../components/ui/Tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table'
 import { useToast } from '../../components/ui/toast/ToastProvider'
 import { adminApi } from '../../lib/api/admin'
 import { ApiError } from '../../lib/api/client'
+import { useDebouncedValue } from '../../lib/useDebouncedValue'
 import { formatDate, formatTime } from '../../lib/format'
+import { cn } from '../../lib/utils'
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback
@@ -35,7 +40,11 @@ export function GroupDetailsPage() {
   const toast = useToast()
   const queryClient = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
+  const [modalTab, setModalTab] = useState<'existing' | 'new'>('existing')
   const [draft, setDraft] = useState({ name: '', email: '' })
+  const [userSearch, setUserSearch] = useState('')
+  const debouncedUserSearch = useDebouncedValue(userSearch, 300)
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([])
 
   const groupQuery = useQuery({
     queryKey: ['admin', 'group', id],
@@ -51,8 +60,21 @@ export function GroupDetailsPage() {
     staleTime: 30_000,
   })
 
+  const usersQuery = useQuery({
+    queryKey: ['admin', 'users', 'group-add', debouncedUserSearch],
+    queryFn: () => adminApi.users.list({ q: debouncedUserSearch || undefined, per_page: 20 }),
+    enabled: modalOpen && modalTab === 'existing',
+    staleTime: 15_000,
+  })
+
   const group = groupQuery.data
   const members = useMemo(() => group?.members ?? [], [group])
+  const memberIds = useMemo(() => new Set(members.map((member) => member.id)), [members])
+
+  const addableUsers = useMemo(
+    () => (usersQuery.data?.items ?? []).filter((candidate) => !memberIds.has(candidate.id)),
+    [usersQuery.data, memberIds]
+  )
 
   const avgProgress = useMemo(
     () =>
@@ -86,13 +108,12 @@ export function GroupDetailsPage() {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'groups'] })
       void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
       void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] })
-      setDraft({ name: '', email: '' })
-      setModalOpen(false)
       if (result.invitation_sent) {
         toast.success(`${result.user.name} was added and invited by email.`, 'Member added')
       } else {
         toast.info(`${result.user.name} was added, but the invitation email could not be sent.`, 'Member added')
       }
+      closeModal()
     },
     onError: (error) => {
       toast.error(errorMessage(error, 'Could not add the member.'), 'Unable to add member')
@@ -105,6 +126,52 @@ export function GroupDetailsPage() {
       return
     }
     addMember.mutate()
+  }
+
+  const addExistingMembers = useMutation({
+    mutationFn: () => {
+      if (!group) throw new Error('Group is not loaded yet.')
+      return adminApi.groups.addMembers(group.id, selectedUserIds)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'group', id] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'groups'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] })
+      toast.success(
+        selectedUserIds.length === 1
+          ? 'The selected member was added to this group.'
+          : `${selectedUserIds.length} members were added to this group.`,
+        'Members added'
+      )
+      closeModal()
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, 'Could not add the selected members.'), 'Unable to add members')
+    },
+  })
+
+  const toggleUserSelection = (userId: number) => {
+    setSelectedUserIds((current) =>
+      current.includes(userId)
+        ? current.filter((value) => value !== userId)
+        : [...current, userId]
+    )
+  }
+
+  const openModal = () => {
+    setModalTab('existing')
+    setUserSearch('')
+    setSelectedUserIds([])
+    setDraft({ name: '', email: '' })
+    setModalOpen(true)
+  }
+
+  const closeModal = () => {
+    setModalOpen(false)
+    setDraft({ name: '', email: '' })
+    setUserSearch('')
+    setSelectedUserIds([])
   }
 
   if (!id) {
@@ -167,7 +234,7 @@ export function GroupDetailsPage() {
           <Button
             variant="secondary"
             className="bg-white text-brand-800 hover:bg-brand-50"
-            onClick={() => setModalOpen(true)}
+            onClick={openModal}
           >
             <UserPlus className="h-4 w-4" />
             Add member
@@ -188,7 +255,7 @@ export function GroupDetailsPage() {
               <CardTitle>Members</CardTitle>
               <p className="mt-1 text-sm text-slate-500">Progress for each member in this group</p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setModalOpen(true)}>
+            <Button variant="outline" size="sm" onClick={openModal}>
               <Plus className="h-3.5 w-3.5" />
               Add
             </Button>
@@ -334,47 +401,129 @@ export function GroupDetailsPage() {
 
       <Modal
         open={modalOpen}
-        onClose={() => {
-          setModalOpen(false)
-          setDraft({ name: '', email: '' })
-        }}
-        title={`Add a member to ${group.name}`}
-        description="New members start as pending until they accept the emailed invitation."
+        onClose={closeModal}
+        title={`Add members to ${group.name}`}
+        description="Pick an existing Daei Mini user, or invite someone new by email."
         footer={
-          <>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setModalOpen(false)
-                setDraft({ name: '', email: '' })
-              }}
-            >
-              Cancel
-            </Button>
-            <Button onClick={submitMember} isLoading={addMember.isPending}>
-              <UserPlus className="h-4 w-4" />
-              Add member
-            </Button>
-          </>
+          modalTab === 'existing' ? (
+            <>
+              <Button variant="outline" onClick={closeModal}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => addExistingMembers.mutate()}
+                isLoading={addExistingMembers.isPending}
+                disabled={selectedUserIds.length === 0}
+              >
+                <UserPlus className="h-4 w-4" />
+                {selectedUserIds.length > 0
+                  ? `Add ${selectedUserIds.length} member${selectedUserIds.length > 1 ? 's' : ''}`
+                  : 'Add members'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={closeModal}>
+                Cancel
+              </Button>
+              <Button onClick={submitMember} isLoading={addMember.isPending}>
+                <UserPlus className="h-4 w-4" />
+                Add member
+              </Button>
+            </>
+          )
         }
       >
         <div className="space-y-4">
-          <Input
-            label="Full name"
-            placeholder="Member name"
-            value={draft.name}
-            onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+          <Tabs
+            value={modalTab}
+            onChange={(value) => setModalTab(value as 'existing' | 'new')}
+            items={[
+              { id: 'existing', label: 'Registered users' },
+              { id: 'new', label: 'Invite new' },
+            ]}
           />
-          <Input
-            label="Email address"
-            type="email"
-            placeholder="member@example.com"
-            value={draft.email}
-            onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
-          />
-          <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
-            An invitation email with a six-digit code will be sent. It expires after 15 minutes.
-          </p>
+
+          {modalTab === 'existing' ? (
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={userSearch}
+                  onChange={(event) => setUserSearch(event.target.value)}
+                  placeholder="Search registered users by name or email…"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  aria-label="Search registered users"
+                />
+              </div>
+
+              <div className="max-h-64 space-y-1.5 overflow-y-auto">
+                {usersQuery.isLoading ? (
+                  <p className="py-8 text-center text-sm text-slate-500">Loading users…</p>
+                ) : addableUsers.length === 0 ? (
+                  <p className="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">
+                    {debouncedUserSearch
+                      ? 'No registered users match your search.'
+                      : 'Every registered user is already in this group.'}
+                  </p>
+                ) : (
+                  addableUsers.map((candidate) => {
+                    const selected = selectedUserIds.includes(candidate.id)
+                    return (
+                      <button
+                        key={candidate.id}
+                        type="button"
+                        onClick={() => toggleUserSelection(candidate.id)}
+                        className={cn(
+                          'flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition-colors',
+                          selected
+                            ? 'border-brand-300 bg-brand-50/60'
+                            : 'border-slate-100 hover:bg-slate-50'
+                        )}
+                      >
+                        <Avatar name={candidate.name} src={candidate.avatar_url} size="sm" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-slate-800">
+                            {candidate.name}
+                          </span>
+                          <span className="block truncate text-xs text-slate-500">{candidate.email}</span>
+                        </span>
+                        <span
+                          className={cn(
+                            'flex h-5 w-5 items-center justify-center rounded-md border',
+                            selected
+                              ? 'border-brand-600 bg-brand-600 text-white'
+                              : 'border-slate-300 text-transparent'
+                          )}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </span>
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <Input
+                label="Full name"
+                placeholder="Member name"
+                value={draft.name}
+                onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+              />
+              <Input
+                label="Email address"
+                type="email"
+                placeholder="member@example.com"
+                value={draft.email}
+                onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))}
+              />
+              <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
+                An invitation email with a six-digit code will be sent. It expires after 15 minutes.
+              </p>
+            </div>
+          )}
         </div>
       </Modal>
     </div>

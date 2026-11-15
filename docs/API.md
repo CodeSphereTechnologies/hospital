@@ -3147,9 +3147,10 @@ curl -i "$BASE/daily-reports/1/comments" \
 }
 ```
 
-### Add daily report comment (admin)
+### Add daily report comment
 
-`POST /daily-reports/{dailyReport}/comments` — Admin.
+`POST /daily-reports/{dailyReport}/comments` — Sanctum. The report owner or an admin can add a
+comment. Administrator feedback notifies the owner; the owner's replies notify every administrator.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -6769,6 +6770,96 @@ ID,Activity,Type,Date,Start,End,Status,Member,Email
 
 The filename is `activities-YYYY-MM-DD.csv`.
 
+### Activity logs
+
+`GET /admin/activity-logs` — Admin, paginated (`per_page` default `20`). Returns the system
+audit trail ordered by `created_at` descending, then id descending.
+
+Every entry records a single business action: who did it, what they did, the record it
+touched, and the request metadata. Actions are grouped into five categories (`auth`,
+`users`, `groups`, `activities`, `reports`) and cover sign-ins, registrations, profile and
+password changes, member creation/edits/suspension, group changes, activity assignment and
+completion, report submissions and reviews, and report comments.
+
+| Query | Type | Notes |
+|---|---|---|
+| `q` | string | Matches description, action, actor name, or actor email. Max 255. |
+| `action` | string | An exact action value (see below). |
+| `category` | string | `auth`, `users`, `groups`, `activities`, or `reports`. |
+| `user_id` | integer | Must exist in `users`. |
+| `from` | date | Inclusive lower bound on `created_at`. |
+| `to` | date | Inclusive upper bound; must be on or after `from`. |
+| `per_page` | integer | 1–100, default 20. |
+
+```bash
+curl -i "$BASE/admin/activity-logs?category=reports&from=2026-11-01&per_page=30" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+**Response `200`:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": 36,
+        "uuid": "9f8e7d6c-5b4a-4321-8fed-cba987654321",
+        "action": "report_comment_added",
+        "action_label": "Added report feedback",
+        "category": "reports",
+        "description": "ThinkCode Admin commented on a daily report.",
+        "actor": {
+          "id": 1,
+          "name": "ThinkCode Admin",
+          "email": "admin@thinkcode.dev",
+          "avatar_url": null,
+          "role": "admin"
+        },
+        "subject_type": "DailyReport",
+        "subject_id": 913,
+        "properties": null,
+        "ip_address": "10.0.0.5",
+        "user_agent": "Mozilla/5.0",
+        "created_at": "2026-11-15T04:04:31+00:00"
+      }
+    ],
+    "stats": {
+      "total": 38,
+      "today": 4,
+      "week": 26,
+      "members": 22
+    },
+    "filters": {
+      "actions": [
+        { "value": "login", "label": "Signed in" },
+        { "value": "report_comment_added", "label": "Added report feedback" }
+      ],
+      "users": [
+        { "value": 1, "label": "ThinkCode Admin" }
+      ]
+    }
+  },
+  "message": "Activity logs retrieved.",
+  "meta": {
+    "current_page": 1,
+    "per_page": 30,
+    "total": 14,
+    "last_page": 1
+  }
+}
+```
+
+`stats` is computed across the whole log (not the current filter): `total` is every entry,
+`today` is today's entries, `week` is the last seven days, and `members` counts distinct
+actors. `filters.actions` lists every action value with its human label, and `filters.users`
+lists the distinct actors present in the log, so the admin UI can populate its dropdowns.
+
+`actor` is `null` for system-generated entries, and `subject_type` is the short class name
+of the affected record (or `null` when the action has no single subject).
+
 ---
 
 
@@ -6918,7 +7009,7 @@ access token), `Admin` = Sanctum plus `role:admin`.
 | `PUT`, `PATCH` | `/daily-reports/{dailyReport}` | Bearer | Owner only. |
 | `DELETE` | `/daily-reports/{dailyReport}` | Bearer | Owner only. |
 | `GET` | `/daily-reports/{dailyReport}/comments` | Bearer | List comments. |
-| `POST` | `/daily-reports/{dailyReport}/comments` | Admin | Add feedback. |
+| `POST` | `/daily-reports/{dailyReport}/comments` | Bearer | Owner or admin. Adds feedback. |
 | `DELETE` | `/daily-reports/{dailyReport}/comments/{comment}` | Bearer | Admin or comment author. |
 
 ### User documents
@@ -7032,6 +7123,7 @@ access token), `Admin` = Sanctum plus `role:admin`.
 | `GET` | `/admin/activities` | Admin | Filters: `q`, `type`, `status`, `user_id`, `per_page`. |
 | `POST` | `/admin/activities/{activity}/complete` | Admin | Complete on behalf of the owner. |
 | `GET` | `/admin/activities/export` | Admin | Activities CSV. |
+| `GET` | `/admin/activity-logs` | Admin | Filters: `q`, `action`, `category`, `user_id`, `from`, `to`, `per_page`. |
 
 ---
 

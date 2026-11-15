@@ -7,7 +7,6 @@ import { useToast } from '../ui/toast/ToastProvider'
 import { adminNav, userNav, type NavSection } from './navConfig'
 import { Logo } from './Logo'
 import { Avatar } from '../ui/Avatar'
-import { MosqueIllustration } from '../shared/MosqueIllustration'
 
 interface SidebarProps {
   variant: 'admin' | 'user'
@@ -131,13 +130,6 @@ export function Sidebar({
           ))}
         </nav>
 
-        {!collapsed && (
-          <div className="dash-side-art mx-3 mb-2">
-            <div className="dash-side-art__pattern" aria-hidden="true" />
-            <MosqueIllustration className="dash-side-art__mosque" />
-          </div>
-        )}
-
         <div className="border-t border-slate-100 p-3">
           <div
             className={cn(
@@ -145,7 +137,7 @@ export function Sidebar({
               collapsed && 'lg:justify-center lg:px-0'
             )}
           >
-            <Avatar name={user?.name ?? 'Guest User'} size="sm" />
+            <Avatar name={user?.name ?? 'Guest User'} src={user?.avatar_url} size="sm" />
             {!collapsed && (
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-slate-800">

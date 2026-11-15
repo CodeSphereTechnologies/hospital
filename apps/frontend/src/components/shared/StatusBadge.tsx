@@ -11,14 +11,14 @@ import {
 import { Badge } from '../ui/Badge'
 import type { ActivityStatus, ActivityType, GoalStatus, UserStatus } from '../../types/domain'
 
-export function UserStatusBadge({ status }: { status: UserStatus }) {
-  const map = {
-    active: { variant: 'success' as const, label: 'Active' },
-    pending: { variant: 'warning' as const, label: 'Pending' },
-    inactive: { variant: 'secondary' as const, label: 'Inactive' },
-    suspended: { variant: 'destructive' as const, label: 'Suspended' },
+export function UserStatusBadge({ status }: { status?: UserStatus }) {
+  const map: Record<UserStatus, { variant: 'success' | 'warning' | 'secondary' | 'destructive'; label: string }> = {
+    active: { variant: 'success', label: 'Active' },
+    pending: { variant: 'warning', label: 'Pending' },
+    inactive: { variant: 'secondary', label: 'Inactive' },
+    suspended: { variant: 'destructive', label: 'Suspended' },
   }
-  const meta = map[status]
+  const meta = (status && map[status]) || { variant: 'secondary' as const, label: 'Unknown' }
   return (
     <Badge variant={meta.variant} dot>
       {meta.label}
@@ -26,13 +26,13 @@ export function UserStatusBadge({ status }: { status: UserStatus }) {
   )
 }
 
-export function ActivityStatusBadge({ status }: { status: ActivityStatus }) {
-  const map = {
-    completed: { variant: 'success' as const, label: 'Completed' },
-    pending: { variant: 'info' as const, label: 'Pending' },
-    missed: { variant: 'destructive' as const, label: 'Missed' },
+export function ActivityStatusBadge({ status }: { status?: ActivityStatus }) {
+  const map: Record<ActivityStatus, { variant: 'success' | 'info' | 'destructive' | 'secondary'; label: string }> = {
+    completed: { variant: 'success', label: 'Completed' },
+    pending: { variant: 'info', label: 'Pending' },
+    missed: { variant: 'destructive', label: 'Missed' },
   }
-  const meta = map[status]
+  const meta = (status && map[status]) || { variant: 'secondary' as const, label: 'Unknown' }
   return <Badge variant={meta.variant}>{meta.label}</Badge>
 }
 
@@ -46,14 +46,14 @@ export function ReportStatusBadge({ status }: { status?: string }) {
   return <Badge variant={meta.variant}>{meta.label}</Badge>
 }
 
-export function GoalStatusBadge({ status }: { status: GoalStatus }) {
+export function GoalStatusBadge({ status }: { status?: GoalStatus }) {
   const map: Record<GoalStatus, { variant: 'success' | 'warning' | 'destructive' | 'secondary' | 'info'; label: string }> = {
     not_started: { variant: 'secondary', label: 'Not started' },
     in_progress: { variant: 'info', label: 'In progress' },
     completed: { variant: 'success', label: 'Completed' },
     paused: { variant: 'warning', label: 'Paused' },
   }
-  const meta = map[status]
+  const meta = (status && map[status]) || { variant: 'secondary' as const, label: 'Unknown' }
   return <Badge variant={meta.variant}>{meta.label}</Badge>
 }
 

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -33,6 +34,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'bio',
+        'avatar_path',
         'role',
         'is_active',
         'invited_at',
@@ -193,6 +195,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isAdmin(): bool
     {
         return $this->role === UserRole::Admin;
+    }
+
+    /**
+     * Resolve the public URL for the user's uploaded avatar, if any.
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar_path !== null
+            ? Storage::disk('public')->url($this->avatar_path)
+            : null;
     }
 
     public function deviceTokens(): HasMany

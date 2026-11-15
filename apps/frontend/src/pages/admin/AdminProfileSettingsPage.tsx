@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   Bell,
+  Camera,
   CheckCircle2,
   KeyRound,
   Save,
@@ -20,6 +21,7 @@ import { Textarea } from '../../components/ui/Textarea'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
 import { Tabs } from '../../components/ui/Tabs'
+import { Switch } from '../../components/ui/Switch'
 import { useToast } from '../../components/ui/toast/ToastProvider'
 import { useAuth } from '../../features/auth/useAuth'
 import { authApi } from '../../lib/api/endpoints'
@@ -60,7 +62,9 @@ export function AdminProfileSettingsPage() {
   const { user } = useAuth()
   const toast = useToast()
   const queryClient = useQueryClient()
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   const [tab, setTab] = useState('profile')
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [preferences, setPreferences] = useState({
     reportEmails: true,
     weeklyDigest: true,
@@ -158,6 +162,28 @@ export function AdminProfileSettingsPage() {
     setPreferences((current) => ({ ...current, [key]: !current[key] }))
   }
 
+  const onAvatarSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    setUploadingAvatar(true)
+    try {
+      await authApi.updateAvatar(file)
+      await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
+      toast.success('Your profile picture has been updated.', 'Photo updated')
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const avatarError = err.errors?.avatar?.[0]
+        toast.error(avatarError ?? err.message, 'Could not update photo')
+      } else {
+        toast.error('The upload service is unavailable right now.', 'Could not update photo')
+      }
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -169,8 +195,39 @@ export function AdminProfileSettingsPage() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <Card className="xl:col-span-1">
           <CardContent className="flex flex-col items-center p-6 text-center">
-            <Avatar name={user?.name ?? 'Administrator'} size="xl" className="ring-4 ring-brand-50" />
-            <h2 className="mt-4 text-lg font-semibold text-slate-900">
+            <div className="relative">
+              <Avatar
+                name={user?.name ?? 'Administrator'}
+                src={user?.avatar_url}
+                size="xl"
+                className="ring-4 ring-brand-50"
+              />
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                aria-label="Change profile picture"
+                className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-brand-600 text-white shadow-sm transition-colors hover:bg-brand-700 disabled:opacity-60"
+              >
+                <Camera className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={onAvatarSelected}
+            />
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              className="mt-3 text-xs font-semibold text-brand-700 hover:text-brand-800 disabled:opacity-60"
+            >
+              {uploadingAvatar ? 'Uploading…' : 'Change photo'}
+            </button>
+            <h2 className="mt-2 text-lg font-semibold text-slate-900">
               {user?.name ?? 'Administrator'}
             </h2>
             <p className="text-sm text-slate-500">{user?.email ?? 'admin@thinkcode.dev'}</p>
@@ -287,21 +344,11 @@ export function AdminProfileSettingsPage() {
                       <span className="block text-sm font-medium text-slate-800">{item.title}</span>
                       <span className="block text-xs text-slate-500">{item.description}</span>
                     </span>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={preferences[item.key]}
-                      onClick={() => togglePreference(item.key)}
-                      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                        preferences[item.key] ? 'bg-brand-600' : 'bg-slate-200'
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                          preferences[item.key] ? 'translate-x-5' : 'translate-x-0.5'
-                        }`}
-                      />
-                    </button>
+                    <Switch
+                      checked={preferences[item.key]}
+                      onChange={() => togglePreference(item.key)}
+                      label={item.title}
+                    />
                   </label>
                 ))}
                 <div className="flex justify-end pt-3">

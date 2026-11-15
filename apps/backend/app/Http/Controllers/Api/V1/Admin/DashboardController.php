@@ -24,6 +24,7 @@ class DashboardController extends Controller
     {
         $users = User::query()->count();
         $groups = Group::query()->count();
+        $activities = Activity::query()->count();
         $reports = DailyReport::query()->count();
         $activeTimetables = SharedTimetable::query()
             ->where('status', TimetableStatus::Published)
@@ -65,6 +66,10 @@ class DashboardController extends Controller
                     Group::query()->where('created_at', '>=', now()->subDays(30))->count(),
                     Group::query()->whereBetween('created_at', [now()->subDays(60), now()->subDays(30)])->count(),
                 ), $this->monthlySeries(Group::class)),
+                $this->stat('Total Activities', $activities, $this->change(
+                    Activity::query()->where('created_at', '>=', now()->subDays(30))->count(),
+                    Activity::query()->whereBetween('created_at', [now()->subDays(60), now()->subDays(30)])->count(),
+                ), $this->monthlySeries(Activity::class)),
                 $this->stat('Total Reports', $reports, $this->change(
                     DailyReport::query()->where('created_at', '>=', now()->subDays(30))->count(),
                     DailyReport::query()->whereBetween('created_at', [now()->subDays(60), now()->subDays(30)])->count(),

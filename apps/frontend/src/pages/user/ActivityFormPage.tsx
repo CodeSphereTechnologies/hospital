@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -14,7 +15,6 @@ import { Alert } from '../../components/ui/Alert'
 import { useToast } from '../../components/ui/toast/ToastProvider'
 import { activitiesApi } from '../../lib/api/endpoints'
 import { ApiError } from '../../lib/api/client'
-import { todaySchedule } from '../../lib/mockData'
 import { todayISO } from '../../lib/format'
 import type { Activity } from '../../types/domain'
 
@@ -61,10 +61,18 @@ export function ActivityFormPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const toast = useToast()
+  const queryClient = useQueryClient()
   const isEdit = Boolean(id)
   const [serverError, setServerError] = useState<string | null>(null)
 
-  const existing = isEdit ? todaySchedule.find((activity) => activity.id === Number(id)) : undefined
+  const activityQuery = useQuery({
+    queryKey: ['activities', 'detail', id],
+    queryFn: () => activitiesApi.get(Number(id)),
+    enabled: isEdit,
+    staleTime: 30_000,
+  })
+
+  const existing = activityQuery.data
 
   const {
     register,
@@ -119,6 +127,8 @@ export function ActivityFormPage() {
         await activitiesApi.create(payload)
         toast.success('Activity scheduled.', 'Created')
       }
+      void queryClient.invalidateQueries({ queryKey: ['activities'] })
+      void queryClient.invalidateQueries({ queryKey: ['dashboard', 'progress'] })
       navigate('/app/schedule')
     } catch (err) {
       if (err instanceof ApiError) {

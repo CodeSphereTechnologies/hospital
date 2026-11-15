@@ -17,6 +17,8 @@ services:
     restart: unless-stopped
     ports:
       - "${FORWARD_HTTP_PORT:-8080}:80"
+    volumes:
+      - ../apps/frontend/dist:/usr/share/nginx/html:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
       interval: 10s

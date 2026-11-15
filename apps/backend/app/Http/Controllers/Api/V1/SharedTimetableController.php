@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateSharedTimetableRequest;
 use App\Http\Resources\SharedTimetableResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\SharedTimetable;
+use App\Support\Search;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -51,7 +52,7 @@ class SharedTimetableController extends Controller
         }
 
         if ($request->filled('search')) {
-            $query->where('title', 'like', '%'.$request->string('search')->toString().'%');
+            Search::whereInsensitiveLike($query, 'title', Search::likePattern($request->string('search')->toString()));
         }
 
         $paginator = $query->paginate((int) $request->integer('per_page', 20));

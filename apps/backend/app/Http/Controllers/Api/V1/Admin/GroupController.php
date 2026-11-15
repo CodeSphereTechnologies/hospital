@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
+use App\Enums\ActivityLogAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AddGroupMembersRequest;
 use App\Http\Requests\StoreAdminGroupRequest;
 use App\Http\Requests\UpdateAdminGroupRequest;
 use App\Http\Resources\AdminGroupResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Group;
+use App\Services\ActivityLogger;
 use App\Support\Csv;
+use App\Support\Search;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +22,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class GroupController extends Controller
 {
+    public function __construct(private readonly ActivityLogger $activityLogger) {}
+
     /**
      * List groups with server-side search and computed progress metrics.
      */
@@ -64,6 +70,13 @@ class GroupController extends Controller
         $this->syncMembers($group, $validated['member_ids'] ?? [], $request->user()?->id);
         $this->loadForResponse($group);
 
+        $this->activityLogger->record(
+            ActivityLogAction::GroupCreated,
+            ($request->user()?->name ?? 'An administrator').' created the group "'.$group->name.'".',
+            $request->user(),
+            $group,
+        );
+
         return ApiResponse::success([
             'group' => new AdminGroupResource($group),
         ], 'Group created.', 201);
@@ -102,9 +115,48 @@ class GroupController extends Controller
 
         $this->loadForResponse($group);
 
+        $this->activityLogger->record(
+            ActivityLogAction::GroupUpdated,
+            ($request->user()?->name ?? 'An administrator').' updated the group "'.$group->name.'".',
+            $request->user(),
+            $group,
+        );
+
         return ApiResponse::success([
             'group' => new AdminGroupResource($group),
         ], 'Group updated.');
+    }
+
+    /**
+     * Add existing members to a group without removing current members.
+     */
+    public function addMembers(AddGroupMembersRequest $request, Group $group): JsonResponse
+    {
+        $assignedBy = $request->user()?->id;
+
+        $members = collect($request->validated()['user_ids'])
+            ->mapWithKeys(fn ($id) => [
+                (int) $id => [
+                    'assigned_by' => $assignedBy,
+                    'assigned_at' => now(),
+                ],
+            ])
+            ->all();
+
+        $group->users()->syncWithoutDetaching($members);
+        $this->loadForResponse($group);
+
+        $this->activityLogger->record(
+            ActivityLogAction::GroupMembersAdded,
+            ($request->user()?->name ?? 'An administrator').' added '.count($members).' member(s) to "'.$group->name.'".',
+            $request->user(),
+            $group,
+            ['added_count' => count($members)],
+        );
+
+        return ApiResponse::success([
+            'group' => new AdminGroupResource($group),
+        ], 'Members added to the group.');
     }
 
     /**
@@ -144,12 +196,12 @@ class GroupController extends Controller
         return Group::query()
             ->withCount('users')
             ->when($filters['q'] ?? null, function (Builder $query, string $search): void {
-                $like = '%'.str_replace(['%', '_'], ['\%', '\_'], trim($search)).'%';
+                $pattern = Search::likePattern($search);
 
-                $query->where(function (Builder $query) use ($like): void {
-                    $query->where('name', 'like', $like)
-                        ->orWhere('description', 'like', $like)
-                        ->orWhere('leader_name', 'like', $like);
+                $query->where(function (Builder $query) use ($pattern): void {
+                    Search::whereInsensitiveLike($query, 'name', $pattern);
+                    Search::whereInsensitiveLike($query, 'description', $pattern, 'or');
+                    Search::whereInsensitiveLike($query, 'leader_name', $pattern, 'or');
                 });
             })
             ->latest();

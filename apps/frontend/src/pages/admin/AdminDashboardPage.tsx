@@ -29,8 +29,6 @@ import '../../styles/admin-dashboard.css'
 interface MetricConfig {
   key: string
   label: string
-  fallbackValue: number
-  fallbackChange: number
   icon: LucideIcon
   accent: 'forest' | 'purple' | 'orange' | 'blue'
   color: string
@@ -40,8 +38,6 @@ const metricConfigs: MetricConfig[] = [
   {
     key: 'users',
     label: 'Total Users',
-    fallbackValue: 248,
-    fallbackChange: 12,
     icon: Users,
     accent: 'forest',
     color: '#106030',
@@ -49,8 +45,6 @@ const metricConfigs: MetricConfig[] = [
   {
     key: 'groups',
     label: 'Total Groups',
-    fallbackValue: 18,
-    fallbackChange: 0,
     icon: UsersRound,
     accent: 'purple',
     color: '#8060c8',
@@ -58,8 +52,6 @@ const metricConfigs: MetricConfig[] = [
   {
     key: 'activities',
     label: 'Total Activities',
-    fallbackValue: 1142,
-    fallbackChange: 15,
     icon: CalendarDays,
     accent: 'orange',
     color: '#e99532',
@@ -67,8 +59,6 @@ const metricConfigs: MetricConfig[] = [
   {
     key: 'reports',
     label: 'Total Reports',
-    fallbackValue: 92,
-    fallbackChange: 10,
     icon: FileText,
     accent: 'blue',
     color: '#398fcb',
@@ -113,26 +103,22 @@ export function AdminDashboardPage() {
   const data = dashboardQuery.data
 
   // Metric values
-  const statsMap: Record<string, { value: number; change: number }> = {
+  const statsMap: Record<string, { value: number; change: number } | undefined> = {
     users: {
-      value: data?.stats.find((s) => s.label.toLowerCase().includes('user'))?.value ?? 248,
-      change: data?.stats.find((s) => s.label.toLowerCase().includes('user'))?.change ?? 12,
+      value: data?.stats.find((s) => s.label === 'Total Users')?.value ?? 0,
+      change: data?.stats.find((s) => s.label === 'Total Users')?.change ?? 0,
     },
     groups: {
-      value: data?.stats.find((s) => s.label.toLowerCase().includes('group'))?.value ?? 18,
-      change: data?.stats.find((s) => s.label.toLowerCase().includes('group'))?.change ?? 0,
+      value: data?.stats.find((s) => s.label === 'Total Groups')?.value ?? 0,
+      change: data?.stats.find((s) => s.label === 'Total Groups')?.change ?? 0,
     },
     activities: {
-      value:
-        data?.stats.find((s) => s.label.toLowerCase().includes('activit') || s.label.toLowerCase().includes('timetable'))
-          ?.value ?? 1142,
-      change:
-        data?.stats.find((s) => s.label.toLowerCase().includes('activit') || s.label.toLowerCase().includes('timetable'))
-          ?.change ?? 15,
+      value: data?.stats.find((s) => s.label === 'Total Activities')?.value ?? 0,
+      change: data?.stats.find((s) => s.label === 'Total Activities')?.change ?? 0,
     },
     reports: {
-      value: data?.stats.find((s) => s.label.toLowerCase().includes('report'))?.value ?? 92,
-      change: data?.stats.find((s) => s.label.toLowerCase().includes('report'))?.change ?? 10,
+      value: data?.stats.find((s) => s.label === 'Total Reports')?.value ?? 0,
+      change: data?.stats.find((s) => s.label === 'Total Reports')?.change ?? 0,
     },
   }
 
@@ -213,24 +199,24 @@ export function AdminDashboardPage() {
         {/* 2x2 Metric Cards Grid */}
         <div className="dash-metrics-grid" aria-label="Key statistics">
           {metricConfigs.map((cfg) => {
-            const stat = statsMap[cfg.key] ?? { value: cfg.fallbackValue, change: cfg.fallbackChange }
+            const stat = statsMap[cfg.key]
             const Icon = cfg.icon
             return (
-              <article key={cfg.key} className={cn('dash-metric', `dash-metric--${cfg.accent}`)}>
+              <Link key={cfg.key} to={`/admin/${cfg.key}`} className={cn('dash-metric', `dash-metric--${cfg.accent}`)}>
                 <div className="dash-metric__top">
                   <span className="dash-metric__icon">
                     <Icon className="h-5 w-5" />
                   </span>
-                  <span className="dash-trend is-up">
+                  {data && stat && <span className={cn('dash-trend', stat.change < 0 ? 'is-down' : 'is-up')}>
                     <ArrowUpRight className="h-3 w-3" />
-                    +{stat.change}%
-                  </span>
+                    {stat.change > 0 ? '+' : ''}{stat.change}%
+                  </span>}
                 </div>
                 <p className="dash-metric__label">{cfg.label}</p>
                 <div className="dash-metric__figure">
-                  <strong>{stat.value.toLocaleString()}</strong>
+                  <strong>{data && stat ? stat.value.toLocaleString() : '—'}</strong>
                 </div>
-              </article>
+              </Link>
             )
           })}
         </div>

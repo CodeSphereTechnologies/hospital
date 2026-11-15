@@ -214,9 +214,13 @@ export function Topbar({ variant, dashboard = false, onMenu }: TopbarProps) {
               aria-haspopup="menu"
               aria-expanded={menuOpen}
             >
-              <Avatar name={variant === 'admin' ? 'Admin' : (user?.name ?? 'User')} size="sm" />
+              <Avatar
+                name={user?.name ?? (variant === 'admin' ? 'Admin' : 'User')}
+                src={user?.avatar_url}
+                size="sm"
+              />
               <span className="hidden max-w-[120px] truncate text-sm font-semibold text-slate-700 md:block">
-                {variant === 'admin' ? 'Admin' : (user?.name ?? 'Member')}
+                {user?.name ?? (variant === 'admin' ? 'Admin' : 'Member')}
               </span>
               <ChevronDown
                 className={cn(

@@ -12,22 +12,52 @@ export function MosqueIllustration({ className }: { className?: string }) {
       fill="none"
       className={cn('pointer-events-none select-none', className)}
     >
-      <g opacity="0.16" fill="currentColor">
-        <path d="M0 220c0-52 42-94 94-94 20 0 38 6 53 16V96c0-19 15-34 34-34s34 15 34 34v46c15-10 33-16 53-16 52 0 94 42 94 94H0Z" />
-        <ellipse cx="181" cy="84" rx="46" ry="44" />
-        <path d="M181 40c-4-9-4-17 0-26 4 9 4 17 0 26Z" />
-        <rect x="22" y="92" width="20" height="128" rx="10" />
-        <path d="M32 58c-6 10-6 20 0 30 6-10 6-20 0-30Z" />
-        <rect x="378" y="92" width="20" height="128" rx="10" />
-        <path d="M388 58c-6 10-6 20 0 30 6-10 6-20 0-30Z" />
-        <rect x="112" y="126" width="26" height="94" rx="13" />
-        <path d="M125 92c-7 12-7 24 0 36 7-12 7-24 0-36Z" />
-        <rect x="224" y="126" width="26" height="94" rx="13" />
-        <path d="M237 92c-7 12-7 24 0 36 7-12 7-24 0-36Z" />
+      {/* Soft silhouette ---------------------------------------------------- */}
+      <g fill="currentColor" opacity="0.72">
+        {/* Ground platform */}
+        <rect x="40" y="198" width="340" height="8" rx="4" />
+        {/* Side halls */}
+        <rect x="58" y="172" width="74" height="28" rx="4" />
+        <path d="M56 174a38 27 0 0 1 76 0Z" />
+        <rect x="288" y="172" width="74" height="28" rx="4" />
+        <path d="M286 174a38 27 0 0 1 76 0Z" />
+        {/* Minarets */}
+        <rect x="110" y="96" width="20" height="104" rx="4" />
+        <path d="M110 98a10 13 0 0 1 20 0Z" />
+        <rect x="118" y="74" width="4" height="16" rx="2" />
+        <circle cx="120" cy="70" r="3.5" />
+        <rect x="290" y="96" width="20" height="104" rx="4" />
+        <path d="M290 98a10 13 0 0 1 20 0Z" />
+        <rect x="298" y="74" width="4" height="16" rx="2" />
+        <circle cx="300" cy="70" r="3.5" />
+        {/* Prayer hall and central dome */}
+        <rect x="148" y="148" width="124" height="52" rx="6" />
+        <path d="M146 150a64 60 0 0 1 128 0Z" />
+        <rect x="186" y="140" width="48" height="12" rx="3" />
+        {/* Finial */}
+        <rect x="208" y="74" width="4" height="22" rx="2" />
+        <path d="M216 50a13 13 0 1 0 0 26 10 10 0 1 1 0-26Z" />
       </g>
-      <g opacity="0.24" stroke="currentColor" strokeWidth="2" fill="none">
-        <path d="M126 156c8-22 18-33 30-33s22 11 30 33" />
-        <path d="M241 156c8-22 18-33 30-33s22 11 30 33" />
+
+      {/* Architectural detail ---------------------------------------------- */}
+      <g stroke="currentColor" strokeWidth="2.4" fill="none" opacity="0.4" strokeLinecap="round">
+        {/* Central arched entrance */}
+        <path d="M196 200v-24a14 14 0 0 1 28 0v24" />
+        {/* Hall windows */}
+        <path d="M164 200v-15a8 8 0 0 1 16 0v15" />
+        <path d="M240 200v-15a8 8 0 0 1 16 0v15" />
+        {/* Dome ribs */}
+        <path d="M178 148c6-22 18-36 32-42" />
+        <path d="M242 148c-6-22-18-36-32-42" />
+        <path d="M210 106v42" />
+        {/* Minaret openings */}
+        <path d="M116 122h8" />
+        <path d="M116 150h8" />
+        <path d="M296 122h8" />
+        <path d="M296 150h8" />
+        {/* Side hall arches */}
+        <path d="M82 200v-12a12 12 0 0 1 24 0v12" />
+        <path d="M312 200v-12a12 12 0 0 1 24 0v12" />
       </g>
     </svg>
   )

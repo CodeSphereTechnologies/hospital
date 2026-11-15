@@ -18,6 +18,7 @@ import { GroupDetailsPage } from '../pages/admin/GroupDetailsPage'
 import { ActivitiesOverviewPage } from '../pages/admin/ActivitiesOverviewPage'
 import { DailyReportsPage } from '../pages/admin/DailyReportsPage'
 import { ReportDetailsPage } from '../pages/admin/ReportDetailsPage'
+import { ActivityLogsPage } from '../pages/admin/ActivityLogsPage'
 import { AdminNotificationsPage } from '../pages/admin/AdminNotificationsPage'
 import { AdminProfileSettingsPage } from '../pages/admin/AdminProfileSettingsPage'
 
@@ -26,6 +27,7 @@ import { CalendarPlannerPage } from '../pages/user/CalendarPlannerPage'
 import { DailySchedulePage } from '../pages/user/DailySchedulePage'
 import { PersonalActivitiesPage } from '../pages/user/PersonalActivitiesPage'
 import { ActivityFormPage } from '../pages/user/ActivityFormPage'
+import { ActivityDetailsPage } from '../pages/user/ActivityDetailsPage'
 import { PrayerSchedulePage } from '../pages/user/PrayerSchedulePage'
 import { HabitsPage } from '../pages/user/HabitsPage'
 import { GoalsPage } from '../pages/user/GoalsPage'
@@ -105,6 +107,7 @@ export const router = createBrowserRouter([
       { path: 'activities', element: <ActivitiesOverviewPage /> },
       { path: 'reports', element: <DailyReportsPage /> },
       { path: 'reports/:id', element: <ReportDetailsPage /> },
+      { path: 'activity-logs', element: <ActivityLogsPage /> },
       { path: 'notifications', element: <AdminNotificationsPage /> },
       { path: 'settings', element: <AdminProfileSettingsPage /> },
       { path: 'dashboard', element: <Navigate to="/admin" replace /> },
@@ -124,6 +127,7 @@ export const router = createBrowserRouter([
       { path: 'schedule', element: <DailySchedulePage /> },
       { path: 'activities', element: <PersonalActivitiesPage /> },
       { path: 'activities/new', element: <ActivityFormPage /> },
+      { path: 'activities/:id', element: <ActivityDetailsPage /> },
       { path: 'activities/:id/edit', element: <ActivityFormPage /> },
       { path: 'prayer', element: <PrayerSchedulePage /> },
       { path: 'habits', element: <HabitsPage /> },

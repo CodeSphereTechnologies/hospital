@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   BarChart3,
   ClipboardList,
@@ -17,47 +18,61 @@ import { Button } from '../../components/ui/Button'
 import { Select } from '../../components/ui/Select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table'
 import { LineChart } from '../../components/charts/Charts'
-import { userReports } from '../../lib/mockData'
+import { reportsApi } from '../../lib/api/endpoints'
+import { ApiError } from '../../lib/api/client'
+import { useDebouncedValue } from '../../lib/useDebouncedValue'
 import { formatDate } from '../../lib/format'
-import type { ChartPoint } from '../../types/domain'
+import type { ChartPoint, DailyReport } from '../../types/domain'
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? error.message : fallback
+}
 
 export function ReportHistoryPage() {
   const [status, setStatus] = useState('all')
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search, 300)
 
-  const filtered = useMemo(
-    () =>
-      userReports.filter((report) => {
-        const matchesStatus = status === 'all' || report.status === status
-        const matchesSearch =
-          !search || (report.summary ?? '').toLowerCase().includes(search.toLowerCase())
-        return matchesStatus && matchesSearch
+  const reportsQuery = useQuery({
+    queryKey: ['user', 'reports', debouncedSearch, status],
+    queryFn: () =>
+      reportsApi.list({
+        q: debouncedSearch || undefined,
+        status: status === 'all' ? undefined : status,
+        per_page: 50,
       }),
-    [status, search]
-  )
+    staleTime: 10_000,
+  })
+
+  const reports: DailyReport[] = reportsQuery.data?.items ?? []
 
   const stats = useMemo(() => {
-    const scored = userReports.filter((report) => (report.scheduled_count ?? 0) > 0)
+    if (reports.length === 0) {
+      return { average: '0.0', submitted: 0, best: 0 }
+    }
+    const scored = reports.filter((report) => (report.scheduled_count ?? 0) > 0)
     const average =
       scored.length === 0
         ? 0
         : scored.reduce((sum, report) => sum + (report.calculated_score ?? 0), 0) / scored.length
+    const best = Math.max(0, ...reports.map((report) => report.calculated_score ?? 0))
     return {
       average: average.toFixed(1),
-      submitted: userReports.length,
-      best: Math.max(...userReports.map((report) => report.calculated_score ?? 0)),
+      submitted: reports.length,
+      best,
     }
-  }, [])
+  }, [reports])
 
   const trend: ChartPoint[] = useMemo(
     () =>
-      [...userReports]
+      [...reports]
         .reverse()
+        .slice(-10)
         .map((report) => ({
           label: formatDate(report.report_date, { day: '2-digit', month: 'short' }),
           value: report.calculated_score ?? 0,
         })),
-    []
+    [reports]
   )
 
   return (
@@ -97,10 +112,20 @@ export function ReportHistoryPage() {
       <Card>
         <CardHeader>
           <CardTitle>Score trend</CardTitle>
-          <p className="text-sm text-slate-500">Your last {userReports.length} daily reports</p>
+          <p className="text-sm text-slate-500">
+            {reports.length === 0
+              ? 'No reports submitted yet'
+              : `Your last ${Math.min(10, reports.length)} daily reports`}
+          </p>
         </CardHeader>
         <CardContent>
-          <LineChart data={trend} height={180} />
+          {trend.length > 0 ? (
+            <LineChart data={trend} height={180} />
+          ) : (
+            <p className="py-8 text-center text-xs text-slate-400">
+              Submit daily reports to see your score trend over time.
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -130,7 +155,20 @@ export function ReportHistoryPage() {
             </Select>
           </div>
 
-          {filtered.length === 0 ? (
+          {reportsQuery.isLoading ? (
+            <div className="py-12 text-center text-sm text-slate-500">Loading your reports…</div>
+          ) : reportsQuery.isError ? (
+            <EmptyState
+              icon={BarChart3}
+              title="Could not load reports"
+              description={errorMessage(reportsQuery.error, 'Your reports list is unavailable right now.')}
+              action={
+                <Button variant="outline" size="sm" onClick={() => void reportsQuery.refetch()}>
+                  Try again
+                </Button>
+              }
+            />
+          ) : reports.length === 0 ? (
             <EmptyState
               icon={BarChart3}
               title="No reports found"
@@ -154,7 +192,7 @@ export function ReportHistoryPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((report) => {
+                {reports.map((report) => {
                   const zero = (report.scheduled_count ?? 0) === 0
                   return (
                     <TableRow key={report.id}>
@@ -163,7 +201,7 @@ export function ReportHistoryPage() {
                       </TableCell>
                       <TableCell>
                         <p className="max-w-[280px] truncate text-sm text-slate-700">
-                          {report.summary}
+                          {report.summary || 'No summary provided.'}
                         </p>
                         {zero && (
                           <p className="mt-0.5 text-[10px] font-medium text-amber-600">

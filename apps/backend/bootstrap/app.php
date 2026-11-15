@@ -24,6 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(AssignRequestId::class);
         $middleware->trustProxies(at: '*');
+        $middleware->trustProxies(at: '*');
+        $middleware->trustProxies(at: '*');
         $middleware->statefulApi();
         $middleware->alias([
             'role' => RoleMiddleware::class,

@@ -12,6 +12,7 @@ use App\Http\Resources\LibraryPermissionResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\LibraryResource;
 use App\Models\LibraryResourcePermission;
+use App\Support\Search;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -35,7 +36,7 @@ class LibraryResourceController extends Controller
             ->orderByDesc('created_at');
 
         if ($request->filled('search')) {
-            $query->where('title', 'like', '%'.$request->string('search')->toString().'%');
+            Search::whereInsensitiveLike($query, 'title', Search::likePattern($request->string('search')->toString()));
         }
 
         if ($request->filled('status')) {

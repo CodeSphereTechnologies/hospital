@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   Activity as ActivityIcon,
   CalendarDays,
   CheckCircle2,
   Filter,
+  Eye,
   Pencil,
   Plus,
   Search,
@@ -17,62 +19,45 @@ import { Select } from '../../components/ui/Select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table'
 import { ActivityStatusBadge, ActivityTypeBadge } from '../../components/shared/StatusBadge'
 import { EmptyState } from '../../components/shared/EmptyState'
-import { todaySchedule } from '../../lib/mockData'
+import { activitiesApi } from '../../lib/api/endpoints'
+import { ApiError } from '../../lib/api/client'
 import { formatDate, formatTime } from '../../lib/format'
-import type { Activity } from '../../types/domain'
-
-const seedActivities: Activity[] = [
-  ...todaySchedule,
-  {
-    id: 201,
-    title: 'Weekly planning session',
-    description: 'Review goals and set the week ahead',
-    activity_type: 'personal',
-    scheduled_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
-    start_time: '18:00',
-    end_time: '18:45',
-    status: 'pending',
-    reminder_enabled: true,
-  },
-  {
-    id: 202,
-    title: 'Read 20 pages',
-    description: 'Continue the current book',
-    activity_type: 'reading',
-    scheduled_date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
-    start_time: '21:00',
-    end_time: '21:45',
-    status: 'completed',
-    reminder_enabled: false,
-  },
-]
 
 export function PersonalActivitiesPage() {
   const [search, setSearch] = useState('')
   const [type, setType] = useState('all')
   const [status, setStatus] = useState('all')
 
+  const activitiesQuery = useQuery({
+    queryKey: ['activities', 'personal'],
+    queryFn: () => activitiesApi.list({ per_page: 100 }),
+    staleTime: 30_000,
+  })
+
+  const activities = useMemo(() => activitiesQuery.data?.items ?? [], [activitiesQuery.data])
+
   const filtered = useMemo(
     () =>
-      seedActivities.filter((activity) => {
+      activities.filter((activity) => {
+        const term = search.trim().toLowerCase()
         const matchesSearch =
-          !search ||
-          activity.title.toLowerCase().includes(search.toLowerCase()) ||
-          (activity.description ?? '').toLowerCase().includes(search.toLowerCase())
+          !term ||
+          activity.title.toLowerCase().includes(term) ||
+          (activity.description ?? '').toLowerCase().includes(term)
         const matchesType = type === 'all' || activity.activity_type === type
         const matchesStatus = status === 'all' || activity.status === status
         return matchesSearch && matchesType && matchesStatus
       }),
-    [search, type, status]
+    [activities, search, type, status]
   )
 
   const counts = useMemo(
     () => ({
-      total: seedActivities.length,
-      completed: seedActivities.filter((activity) => activity.status === 'completed').length,
-      pending: seedActivities.filter((activity) => activity.status === 'pending').length,
+      total: activities.length,
+      completed: activities.filter((activity) => activity.status === 'completed').length,
+      pending: activities.filter((activity) => activity.status === 'pending').length,
     }),
-    []
+    [activities]
   )
 
   return (
@@ -158,7 +143,24 @@ export function PersonalActivitiesPage() {
             </div>
           </div>
 
-          {filtered.length === 0 ? (
+          {activitiesQuery.isLoading ? (
+            <div className="py-12 text-center text-sm text-slate-500">Loading activities…</div>
+          ) : activitiesQuery.isError ? (
+            <EmptyState
+              icon={ActivityIcon}
+              title="Could not load activities"
+              description={
+                activitiesQuery.error instanceof ApiError
+                  ? activitiesQuery.error.message
+                  : 'Your activities are unavailable right now.'
+              }
+              action={
+                <Button variant="outline" size="sm" onClick={() => void activitiesQuery.refetch()}>
+                  Try again
+                </Button>
+              }
+            />
+          ) : filtered.length === 0 ? (
             <EmptyState
               icon={ActivityIcon}
               title="No activities found"
@@ -208,6 +210,12 @@ export function PersonalActivitiesPage() {
                       <ActivityStatusBadge status={activity.status} />
                     </TableCell>
                     <TableCell className="text-right">
+                      <Link to={`/app/activities/${activity.id}`}>
+                        <Button variant="ghost" size="sm">
+                          <Eye className="h-3.5 w-3.5" />
+                          View
+                        </Button>
+                      </Link>
                       <Link to={`/app/activities/${activity.id}/edit`}>
                         <Button variant="ghost" size="sm">
                           <Pencil className="h-3.5 w-3.5" />

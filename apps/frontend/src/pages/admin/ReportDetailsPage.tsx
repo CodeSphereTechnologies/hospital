@@ -352,18 +352,24 @@ export function ReportDetailsPage() {
                 <p className="text-sm text-slate-500">No comments yet. Start the conversation.</p>
               ) : (
                 <div className="space-y-3">
-                  {comments.map((item) => (
-                    <div key={item.id} className="flex gap-2.5">
-                      <Avatar name={item.author} size="sm" />
-                      <div className="min-w-0 flex-1 rounded-xl bg-slate-50 p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-xs font-semibold text-slate-800">{item.author}</p>
-                          <span className="text-[10px] text-slate-400">{formatDateTime(item.created_at)}</span>
+                  {comments.map((item) => {
+                    const authorName =
+                      typeof item.author === 'string'
+                        ? item.author
+                        : item.author?.name ?? 'Administrator'
+                    return (
+                      <div key={item.id} className="flex gap-2.5">
+                        <Avatar name={authorName} src={item.avatar_url ?? undefined} size="sm" />
+                        <div className="min-w-0 flex-1 rounded-xl bg-slate-50 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="truncate text-xs font-semibold text-slate-800">{authorName}</p>
+                            <span className="text-[10px] text-slate-400">{formatDateTime(item.created_at)}</span>
+                          </div>
+                          <p className="mt-1 text-xs leading-relaxed text-slate-600">{item.comment}</p>
                         </div>
-                        <p className="mt-1 text-xs leading-relaxed text-slate-600">{item.comment}</p>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
 

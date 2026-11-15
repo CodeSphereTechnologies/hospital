@@ -3,12 +3,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity as ActivityIcon,
   CalendarDays,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock3,
   Download,
+  Plus,
   Search,
+  Users,
+  UsersRound,
   XCircle,
 } from 'lucide-react'
 import { PageHeader } from '../../components/shared/PageHeader'
@@ -21,14 +25,20 @@ import { EmptyState } from '../../components/shared/EmptyState'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Select } from '../../components/ui/Select'
+import { Input } from '../../components/ui/Input'
+import { Textarea } from '../../components/ui/Textarea'
+import { Modal } from '../../components/ui/Modal'
+import { Tabs } from '../../components/ui/Tabs'
+import { Avatar } from '../../components/ui/Avatar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table'
 import { BarChart } from '../../components/charts/Charts'
 import { useToast } from '../../components/ui/toast/ToastProvider'
-import { adminApi } from '../../lib/api/admin'
+import { adminApi, type AdminActivityInput } from '../../lib/api/admin'
 import { ApiError } from '../../lib/api/client'
 import { useDebouncedValue } from '../../lib/useDebouncedValue'
-import { formatDate, formatTime } from '../../lib/format'
-import type { Activity } from '../../types/domain'
+import { formatDate, formatTime, todayISO } from '../../lib/format'
+import { cn } from '../../lib/utils'
+import type { Activity, ActivityType } from '../../types/domain'
 
 const PAGE_SIZE = 10
 
@@ -59,6 +69,39 @@ export function ActivitiesOverviewPage() {
   const [status, setStatus] = useState('all')
   const [page, setPage] = useState(1)
   const [exporting, setExporting] = useState(false)
+
+  const [createOpen, setCreateOpen] = useState(false)
+  const [targetTab, setTargetTab] = useState<'group' | 'members'>('group')
+  const [groupId, setGroupId] = useState('')
+  const [userSearch, setUserSearch] = useState('')
+  const debouncedUserSearch = useDebouncedValue(userSearch, 300)
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([])
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    activity_type: 'prayer' as ActivityType,
+    scheduled_date: todayISO(),
+    start_time: '',
+    end_time: '',
+    reminder_enabled: true,
+  })
+
+  const groupsQuery = useQuery({
+    queryKey: ['admin', 'groups', 'activity-targets'],
+    queryFn: () => adminApi.groups.list({ per_page: 100 }),
+    enabled: createOpen,
+    staleTime: 60_000,
+  })
+
+  const targetUsersQuery = useQuery({
+    queryKey: ['admin', 'users', 'activity-targets', debouncedUserSearch],
+    queryFn: () => adminApi.users.list({ q: debouncedUserSearch || undefined, per_page: 20 }),
+    enabled: createOpen && targetTab === 'members',
+    staleTime: 15_000,
+  })
+
+  const groups = groupsQuery.data?.items ?? []
+  const targetUsers = targetUsersQuery.data?.items ?? []
 
   const filters = {
     q: debouncedSearch || undefined,
@@ -98,6 +141,86 @@ export function ActivitiesOverviewPage() {
     },
   })
 
+  const createActivity = useMutation({
+    mutationFn: (payload: AdminActivityInput) => adminApi.activities.create(payload),
+    onSuccess: (activity) => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'activities'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'analytics'] })
+      toast.success(`“${activity.title}” now appears on the member's dashboard.`, 'Activity created')
+      closeCreate()
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, 'Could not create the activity.'), 'Create failed')
+    },
+  })
+
+  const toggleUserSelection = (userId: number) => {
+    setSelectedUserIds((current) =>
+      current.includes(userId)
+        ? current.filter((value) => value !== userId)
+        : [...current, userId]
+    )
+  }
+
+  const openCreate = () => {
+    setTargetTab('group')
+    setGroupId('')
+    setUserSearch('')
+    setSelectedUserIds([])
+    setForm({
+      title: '',
+      description: '',
+      activity_type: 'prayer',
+      scheduled_date: todayISO(),
+      start_time: '',
+      end_time: '',
+      reminder_enabled: true,
+    })
+    setCreateOpen(true)
+  }
+
+  const closeCreate = () => {
+    setCreateOpen(false)
+    setGroupId('')
+    setUserSearch('')
+    setSelectedUserIds([])
+  }
+
+  const submitCreate = () => {
+    if (!form.title.trim()) {
+      toast.error('Give the activity a title.')
+      return
+    }
+    if (!form.scheduled_date) {
+      toast.error('Choose a date for the activity.')
+      return
+    }
+    if (targetTab === 'group' && !groupId) {
+      toast.error('Select a group to assign this activity to.')
+      return
+    }
+    if (targetTab === 'members' && selectedUserIds.length === 0) {
+      toast.error('Select at least one member to assign this activity to.')
+      return
+    }
+
+    const payload: AdminActivityInput = {
+      title: form.title.trim(),
+      description: form.description.trim() || null,
+      activity_type: form.activity_type,
+      scheduled_date: form.scheduled_date,
+      start_time: form.start_time || null,
+      end_time: form.end_time || null,
+      reminder_enabled: form.reminder_enabled,
+      ...(targetTab === 'group'
+        ? { group_id: Number(groupId) }
+        : { user_ids: selectedUserIds }),
+    }
+
+    createActivity.mutate(payload)
+  }
+
   const handleExport = async () => {
     setExporting(true)
     try {
@@ -124,10 +247,16 @@ export function ActivitiesOverviewPage() {
         title="Activities overview"
         description="Every scheduled activity across the community, in one place."
         actions={
-          <Button variant="outline" size="sm" onClick={handleExport} isLoading={exporting}>
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              New activity
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport} isLoading={exporting}>
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
         }
       />
 
@@ -306,6 +435,174 @@ export function ActivitiesOverviewPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Modal
+        open={createOpen}
+        onClose={closeCreate}
+        title="Create an activity"
+        description="Assign a scheduled activity to a whole group or to specific members. It appears instantly on their dashboard."
+        footer={
+          <>
+            <Button variant="outline" onClick={closeCreate}>
+              Cancel
+            </Button>
+            <Button onClick={submitCreate} isLoading={createActivity.isPending}>
+              <Plus className="h-4 w-4" />
+              Create activity
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="Title"
+            placeholder="Morning Quran reading"
+            value={form.title}
+            onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Select
+              label="Activity type"
+              value={form.activity_type}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, activity_type: event.target.value as ActivityType }))
+              }
+              options={typeOptions.filter((option) => option.value !== 'all')}
+            />
+            <Input
+              label="Date"
+              type="date"
+              value={form.scheduled_date}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, scheduled_date: event.target.value }))
+              }
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label="Start time (optional)"
+              type="time"
+              value={form.start_time}
+              onChange={(event) => setForm((current) => ({ ...current, start_time: event.target.value }))}
+            />
+            <Input
+              label="End time (optional)"
+              type="time"
+              value={form.end_time}
+              onChange={(event) => setForm((current) => ({ ...current, end_time: event.target.value }))}
+            />
+          </div>
+          <Textarea
+            label="Description (optional)"
+            placeholder="Add any notes or context for this activity"
+            value={form.description}
+            onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+          />
+
+          <div className="space-y-3 rounded-xl border border-slate-100 p-3.5">
+            <p className="text-sm font-medium text-slate-800">Assign to</p>
+            <Tabs
+              value={targetTab}
+              onChange={(value) => setTargetTab(value as 'group' | 'members')}
+              items={[
+                { id: 'group', label: 'A group', icon: <UsersRound className="h-3.5 w-3.5" /> },
+                { id: 'members', label: 'Specific members', icon: <Users className="h-3.5 w-3.5" /> },
+              ]}
+            />
+
+            {targetTab === 'group' ? (
+              <Select
+                value={groupId}
+                onChange={(event) => setGroupId(event.target.value)}
+                aria-label="Select a group"
+              >
+                <option value="">
+                  {groupsQuery.isLoading ? 'Loading groups…' : 'Select a group'}
+                </option>
+                {groups.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name} ({option.members_count} members)
+                  </option>
+                ))}
+              </Select>
+            ) : (
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={userSearch}
+                    onChange={(event) => setUserSearch(event.target.value)}
+                    placeholder="Search members by name or email…"
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                    aria-label="Search members"
+                  />
+                </div>
+                <div className="max-h-52 space-y-1.5 overflow-y-auto">
+                  {targetUsersQuery.isLoading ? (
+                    <p className="py-6 text-center text-sm text-slate-500">Loading members…</p>
+                  ) : targetUsers.length === 0 ? (
+                    <p className="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">
+                      No members match your search.
+                    </p>
+                  ) : (
+                    targetUsers.map((candidate) => {
+                      const selected = selectedUserIds.includes(candidate.id)
+                      return (
+                        <button
+                          key={candidate.id}
+                          type="button"
+                          onClick={() => toggleUserSelection(candidate.id)}
+                          className={cn(
+                            'flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition-colors',
+                            selected
+                              ? 'border-brand-300 bg-brand-50/60'
+                              : 'border-slate-100 hover:bg-slate-50'
+                          )}
+                        >
+                          <Avatar name={candidate.name} src={candidate.avatar_url} size="sm" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold text-slate-800">
+                              {candidate.name}
+                            </span>
+                            <span className="block truncate text-xs text-slate-500">{candidate.email}</span>
+                          </span>
+                          <span
+                            className={cn(
+                              'flex h-5 w-5 items-center justify-center rounded-md border',
+                              selected
+                                ? 'border-brand-600 bg-brand-600 text-white'
+                                : 'border-slate-300 text-transparent'
+                            )}
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </span>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <label className="flex items-start gap-3 rounded-xl border border-slate-100 p-3.5">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-400"
+              checked={form.reminder_enabled}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, reminder_enabled: event.target.checked }))
+              }
+            />
+            <span>
+              <span className="block text-sm font-medium text-slate-800">Enable reminders</span>
+              <span className="block text-xs text-slate-500">
+                Members with notifications enabled will be reminded when this activity is about to start.
+              </span>
+            </span>
+          </label>
+        </div>
+      </Modal>
     </div>
   )
 }

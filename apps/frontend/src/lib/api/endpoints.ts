@@ -84,8 +84,35 @@ export const authApi = {
   me: () => unwrap<User>(apiClient.get<ApiEnvelope<User>>('/api/v1/auth/me')),
   updateProfile: (payload: UpdateProfileData) =>
     unwrap<User>(apiClient.patch<ApiEnvelope<User>>('/api/v1/auth/profile', payload)),
+  updateAvatar: (file: File) => {
+    const form = new FormData()
+    form.append('avatar', file)
+    return unwrap<{ user: User }>(
+      apiClient.post<ApiEnvelope<{ user: User }>>('/api/v1/auth/avatar', form)
+    )
+  },
   changePassword: (payload: UpdatePasswordData) =>
     apiClient.patch<ApiEnvelope<null>>('/api/v1/auth/password', payload),
+}
+
+export interface ProgressMetric {
+  completed: number
+  total: number
+  percentage: number
+}
+
+export interface DashboardProgress {
+  prayer: ProgressMetric
+  quran: ProgressMetric
+  exercise: ProgressMetric
+  other: ProgressMetric
+}
+
+export const dashboardApi = {
+  progress: () =>
+    unwrap<{ progress: DashboardProgress }>(
+      apiClient.get<ApiEnvelope<{ progress: DashboardProgress }>>('/api/v1/dashboard/progress')
+    ),
 }
 
 export const activitiesApi = {
@@ -93,6 +120,8 @@ export const activitiesApi = {
     toList(
       await apiClient.get<ApiEnvelope<Activity[]>>(`/api/v1/activities${query(params)}`)
     ),
+  get: (id: number) =>
+    unwrap<Activity>(apiClient.get<ApiEnvelope<Activity>>(`/api/v1/activities/${id}`)),
   create: (payload: Partial<Activity>) =>
     unwrap<Activity>(apiClient.post<ApiEnvelope<Activity>>('/api/v1/activities', payload)),
   update: (id: number, payload: Partial<Activity>) =>

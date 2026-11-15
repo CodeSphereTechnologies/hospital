@@ -287,6 +287,13 @@
   line-height: 1.1;
 }
 
+.user-dashboard .user-metric-card__sub {
+  margin-top: 6px;
+  color: var(--user-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 /* 3. Lower Section: Progress Overview (Left) + Today's Plan (Right) -------- */
 
 .user-dashboard .user-lower-section {

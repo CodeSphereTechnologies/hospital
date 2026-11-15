@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
+use App\Enums\ActivityLogAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAdminUserRequest;
 use App\Http\Requests\UpdateAdminUserRequest;
@@ -11,7 +12,9 @@ use App\Http\Resources\DailyReportResource;
 use App\Http\Responses\ApiResponse;
 use App\Mail\AdminInvitationMail;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use App\Support\Csv;
+use App\Support\Search;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +26,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserController extends Controller
 {
+    public function __construct(private readonly ActivityLogger $activityLogger) {}
+
     /**
      * List members with server-side search, filters and pagination.
      */
@@ -90,6 +95,14 @@ class UserController extends Controller
         }
 
         $user->load('groups')->loadCount(['activities', 'dailyReports']);
+
+        $this->activityLogger->record(
+            ActivityLogAction::UserCreated,
+            ($inviter?->name ?? 'An administrator').' created the account for '.$user->name.'.',
+            $inviter,
+            $user,
+            ['role' => $validated['role'], 'status' => $status],
+        );
 
         return ApiResponse::success([
             'user' => new AdminUserResource($user),
@@ -172,6 +185,13 @@ class UserController extends Controller
         $user->refresh()->load('groups')->loadCount(['activities', 'dailyReports']);
         $user->setAttribute('average_score', (float) ($user->dailyReports()->avg('calculated_score') ?? 0));
 
+        $this->activityLogger->record(
+            ActivityLogAction::UserUpdated,
+            ($request->user()?->name ?? 'An administrator').' updated '.$user->name.'\'s account.',
+            $request->user(),
+            $user,
+        );
+
         return ApiResponse::success([
             'user' => new AdminUserResource($user),
         ], 'User updated.');
@@ -189,6 +209,13 @@ class UserController extends Controller
         $user->forceFill(['is_active' => ! $user->is_active])->save();
         $user->load('groups')->loadCount(['activities', 'dailyReports']);
         $user->setAttribute('average_score', (float) ($user->dailyReports()->avg('calculated_score') ?? 0));
+
+        $this->activityLogger->record(
+            $user->is_active ? ActivityLogAction::UserActivated : ActivityLogAction::UserDeactivated,
+            ($request->user()?->name ?? 'An administrator').' '.($user->is_active ? 'activated' : 'deactivated').' '.$user->name.'\'s account.',
+            $request->user(),
+            $user,
+        );
 
         return ApiResponse::success([
             'user' => new AdminUserResource($user),
@@ -216,6 +243,13 @@ class UserController extends Controller
 
         $user->refresh()->load('groups')->loadCount(['activities', 'dailyReports']);
         $user->setAttribute('average_score', (float) ($user->dailyReports()->avg('calculated_score') ?? 0));
+
+        $this->activityLogger->record(
+            $user->suspended_at !== null ? ActivityLogAction::UserSuspended : ActivityLogAction::UserReinstated,
+            ($request->user()?->name ?? 'An administrator').' '.($user->suspended_at !== null ? 'suspended' : 'reinstated').' '.$user->name.'\'s account.',
+            $request->user(),
+            $user,
+        );
 
         return ApiResponse::success([
             'user' => new AdminUserResource($user),
@@ -268,12 +302,15 @@ class UserController extends Controller
             ->withCount(['activities', 'dailyReports'])
             ->withAvg('dailyReports as average_score', 'calculated_score')
             ->when($filters['q'] ?? null, function (Builder $query, string $search): void {
-                $like = '%'.str_replace(['%', '_'], ['\%', '\_'], trim($search)).'%';
+                $pattern = Search::likePattern($search);
 
-                $query->where(function (Builder $query) use ($like): void {
-                    $query->where('name', 'like', $like)
-                        ->orWhere('email', 'like', $like)
-                        ->orWhereHas('groups', fn (Builder $groups) => $groups->where('name', 'like', $like));
+                $query->where(function (Builder $query) use ($pattern): void {
+                    Search::whereInsensitiveLike($query, 'name', $pattern);
+                    Search::whereInsensitiveLike($query, 'email', $pattern, 'or');
+                    $query->orWhereHas(
+                        'groups',
+                        fn (Builder $groups) => Search::whereInsensitiveLike($groups, 'name', $pattern),
+                    );
                 });
             })
             ->when($filters['role'] ?? null, fn (Builder $query, string $role) => $query->where('role', $role))

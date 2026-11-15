@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CalendarDays,
   CheckCircle2,
@@ -17,18 +18,29 @@ import { Progress } from '../../components/ui/Progress'
 import { Select } from '../../components/ui/Select'
 import { ActivityStatusBadge, ActivityTypeBadge } from '../../components/shared/StatusBadge'
 import { useToast } from '../../components/ui/toast/ToastProvider'
-import { todaySchedule } from '../../lib/mockData'
+import { activitiesApi } from '../../lib/api/endpoints'
 import { formatDate, formatTime, todayISO } from '../../lib/format'
 import type { Activity } from '../../types/domain'
 import { cn } from '../../lib/utils'
 
 export function DailySchedulePage() {
   const toast = useToast()
-  const [activities, setActivities] = useState<Activity[]>(todaySchedule)
+  const queryClient = useQueryClient()
   const [filter, setFilter] = useState('all')
 
+  const activitiesQuery = useQuery({
+    queryKey: ['activities', 'schedule'],
+    queryFn: () => activitiesApi.list({ per_page: 100 }),
+    staleTime: 30_000,
+  })
+
+  const activities = useMemo(
+    () => (activitiesQuery.data?.items ?? []).filter((activity) => activity.scheduled_date === todayISO()),
+    [activitiesQuery.data]
+  )
+
   const completed = activities.filter((activity) => activity.status === 'completed').length
-  const completion = Math.round((completed / activities.length) * 100)
+  const completion = activities.length > 0 ? Math.round((completed / activities.length) * 100) : 0
 
   const filtered = useMemo(
     () =>
@@ -36,20 +48,24 @@ export function DailySchedulePage() {
     [activities, filter]
   )
 
-  const toggleComplete = (activity: Activity) => {
-    setActivities((current) =>
-      current.map((item) =>
-        item.id === activity.id
-          ? { ...item, status: item.status === 'completed' ? 'pending' : 'completed' }
-          : item
-      )
-    )
-    toast.success(
+  const toggleComplete = useMutation({
+    mutationFn: (activity: Activity) =>
       activity.status === 'completed'
-        ? `“${activity.title}” moved back to pending.`
-        : `“${activity.title}” marked complete.`
-    )
-  }
+        ? activitiesApi.update(activity.id, { status: 'pending' })
+        : activitiesApi.complete(activity.id),
+    onSuccess: (_data, activity) => {
+      void queryClient.invalidateQueries({ queryKey: ['activities'] })
+      void queryClient.invalidateQueries({ queryKey: ['dashboard', 'progress'] })
+      toast.success(
+        activity.status === 'completed'
+          ? `“${activity.title}” moved back to pending.`
+          : `“${activity.title}” marked complete.`
+      )
+    },
+    onError: () => {
+      toast.error('Could not update the activity. Please try again.', 'Update failed')
+    },
+  })
 
   return (
     <div className="space-y-6">
@@ -112,7 +128,11 @@ export function DailySchedulePage() {
           <div className="space-y-3">
             {filtered.length === 0 ? (
               <p className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                No activities match this filter.
+                {activitiesQuery.isLoading
+                  ? 'Loading your schedule…'
+                  : activities.length === 0
+                    ? 'No activities scheduled for today yet.'
+                    : 'No activities match this filter.'}
               </p>
             ) : (
               filtered.map((activity) => (
@@ -167,7 +187,8 @@ export function DailySchedulePage() {
                     <Button
                       variant={activity.status === 'completed' ? 'outline' : 'soft'}
                       size="sm"
-                      onClick={() => toggleComplete(activity)}
+                      onClick={() => toggleComplete.mutate(activity)}
+                      isLoading={toggleComplete.isPending && toggleComplete.variables?.id === activity.id}
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       {activity.status === 'completed' ? 'Undo' : 'Complete'}

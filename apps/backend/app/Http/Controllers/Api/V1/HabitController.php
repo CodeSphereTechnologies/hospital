@@ -13,6 +13,7 @@ use App\Http\Resources\HabitResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Habit;
 use App\Models\HabitRecord;
+use App\Support\Search;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -37,7 +38,7 @@ class HabitController extends Controller
         }
 
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%'.$request->string('search')->toString().'%');
+            Search::whereInsensitiveLike($query, 'name', Search::likePattern($request->string('search')->toString()));
         }
 
         $paginator = $query->paginate((int) $request->integer('per_page', 20));

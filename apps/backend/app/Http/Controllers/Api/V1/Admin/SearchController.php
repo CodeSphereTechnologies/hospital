@@ -10,6 +10,7 @@ use App\Http\Responses\ApiResponse;
 use App\Models\DailyReport;
 use App\Models\Group;
 use App\Models\User;
+use App\Support\Search;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -25,35 +26,32 @@ class SearchController extends Controller
         ]);
 
         $term = trim($validated['q']);
-        $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $term).'%';
+        $pattern = Search::likePattern($term);
 
         $users = User::query()
             ->with('groups')
             ->withCount(['activities', 'dailyReports'])
             ->withAvg('dailyReports as average_score', 'calculated_score')
-            ->where(fn ($query) => $query
-                ->where('name', 'like', $like)
-                ->orWhere('email', 'like', $like))
+            ->where(fn ($query) => Search::whereAnyInsensitiveLike($query, ['name', 'email'], $pattern))
             ->limit(5)
             ->get();
 
         $groups = Group::query()
             ->withCount('users')
-            ->where(fn ($query) => $query
-                ->where('name', 'like', $like)
-                ->orWhere('description', 'like', $like)
-                ->orWhere('leader_name', 'like', $like))
+            ->where(fn ($query) => Search::whereAnyInsensitiveLike($query, ['name', 'description', 'leader_name'], $pattern))
             ->limit(5)
             ->get();
 
         $reports = DailyReport::query()
             ->with('user')
             ->withCount('comments')
-            ->where(fn ($query) => $query
-                ->where('summary', 'like', $like)
-                ->orWhereHas('user', fn ($user) => $user
-                    ->where('name', 'like', $like)
-                    ->orWhere('email', 'like', $like)))
+            ->where(function ($query) use ($pattern): void {
+                Search::whereInsensitiveLike($query, 'summary', $pattern);
+                $query->orWhereHas(
+                    'user',
+                    fn ($user) => Search::whereAnyInsensitiveLike($user, ['name', 'email'], $pattern),
+                );
+            })
             ->orderByDesc('report_date')
             ->limit(5)
             ->get();

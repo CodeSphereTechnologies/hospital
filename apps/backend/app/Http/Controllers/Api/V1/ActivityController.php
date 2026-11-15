@@ -14,6 +14,7 @@ use App\Http\Resources\ActivityResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Activity;
 use App\Models\ActivityReminder;
+use App\Support\Search;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -62,7 +63,7 @@ class ActivityController extends Controller
         }
 
         if ($request->filled('search')) {
-            $query->where('title', 'like', '%'.$request->string('search')->toString().'%');
+            Search::whereInsensitiveLike($query, 'title', Search::likePattern($request->string('search')->toString()));
         }
 
         $paginator = $query->paginate((int) $request->integer('per_page', 20));

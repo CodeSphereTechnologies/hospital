@@ -17,6 +17,16 @@ vi.mock('../lib/api/endpoints', () => ({
       nextPage: null,
     }),
   },
+  dashboardApi: {
+    progress: vi.fn().mockResolvedValue({
+      progress: {
+        prayer: { completed: 4, total: 5, percentage: 80 },
+        quran: { completed: 2, total: 4, percentage: 50 },
+        exercise: { completed: 1, total: 3, percentage: 33 },
+        other: { completed: 0, total: 0, percentage: 0 },
+      },
+    }),
+  },
 }))
 
 function renderComponent() {
@@ -63,18 +73,19 @@ describe('UserDashboardPage', () => {
     expect(screen.getByRole('button', { name: /daily report/i })).toBeInTheDocument()
   })
 
-  it('renders all four metric cards in a single row', () => {
+  it('renders the four personal progress cards wired to the progress API', async () => {
     renderComponent()
 
-    expect(screen.getByText(/total users/i)).toBeInTheDocument()
-    expect(screen.getByText(/total groups/i)).toBeInTheDocument()
-    expect(screen.getByText(/total activities/i)).toBeInTheDocument()
-    expect(screen.getByText(/total reports/i)).toBeInTheDocument()
+    expect(screen.getByText(/prayer progress/i)).toBeInTheDocument()
+    expect(screen.getByText(/quran progress/i)).toBeInTheDocument()
+    expect(screen.getByText(/exercise progress/i)).toBeInTheDocument()
+    expect(screen.getByText(/other activities/i)).toBeInTheDocument()
 
-    expect(screen.getByText('248')).toBeInTheDocument()
-    expect(screen.getByText('18')).toBeInTheDocument()
-    expect(screen.getByText('1,142')).toBeInTheDocument()
-    expect(screen.getByText('92')).toBeInTheDocument()
+    // Placeholder percentages are shown until the API responds.
+    expect(screen.getAllByText('--%').length).toBeGreaterThan(0)
+
+    expect(await screen.findByText('80%')).toBeInTheDocument()
+    expect(screen.getByText('50%')).toBeInTheDocument()
   })
 
   it('renders Progress Overview section with bar chart and completion rate', () => {
@@ -89,7 +100,7 @@ describe('UserDashboardPage', () => {
 
     expect(screen.getByRole('heading', { name: /today's plan/i })).toBeInTheDocument()
     expect(screen.getByText(/read quran/i)).toBeInTheDocument()
-    expect(screen.getByText(/exercise/i)).toBeInTheDocument()
+    expect(screen.getByText('Exercise')).toBeInTheDocument()
     expect(screen.getByText(/drink water/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /view all/i })).toHaveAttribute('href', '/app/schedule')
   })

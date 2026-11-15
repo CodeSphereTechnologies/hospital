@@ -22,6 +22,7 @@ class AdminUserResource extends JsonResource
             'uuid' => $this->uuid,
             'name' => $this->name,
             'email' => $this->email,
+            'avatar_url' => $this->avatar_url,
             'role' => $role,
             'roles' => $role !== null ? [$role] : [],
             'is_active' => (bool) $this->is_active,

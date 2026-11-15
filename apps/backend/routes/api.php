@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\ActivityController;
 use App\Http\Controllers\Api\V1\Admin\ActivityController as AdminActivityController;
+use App\Http\Controllers\Api\V1\Admin\ActivityLogController as AdminActivityLogController;
 use App\Http\Controllers\Api\V1\Admin\AnalyticsController as AdminAnalyticsController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\V1\Admin\GroupController as AdminGroupController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Api\V1\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BookmarkController;
 use App\Http\Controllers\Api\V1\DailyReportController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DemoController;
 use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\ExerciseRecordController;
@@ -64,6 +66,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('auth')->group(function () {
             Route::get('/me', [AuthController::class, 'me']);
             Route::patch('/profile', [AuthController::class, 'updateProfile']);
+            Route::post('/avatar', [AuthController::class, 'updateAvatar']);
             Route::patch('/password', [AuthController::class, 'updatePassword']);
             Route::post('/logout', [AuthController::class, 'logout']);
             Route::post('/email/verification-notification', [AuthController::class, 'resendEmailVerification'])
@@ -81,6 +84,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/tasks', [DemoController::class, 'tasks']);
         Route::post('/queue-test', [DemoController::class, 'dispatchJob']);
         Route::get('/admin-check', [DemoController::class, 'adminOnly'])->middleware('role:admin');
+
+        // ── Personal Progress Dashboard ────────────────────────────────────
+        Route::get('/dashboard/progress', [DashboardController::class, 'progress']);
 
         // ── Personal Activities ────────────────────────────────────────────
         Route::get('/activities', [ActivityController::class, 'index']);
@@ -152,7 +158,7 @@ Route::prefix('v1')->group(function () {
         Route::match(['put', 'patch'], '/daily-reports/{dailyReport}', [DailyReportController::class, 'update']);
         Route::delete('/daily-reports/{dailyReport}', [DailyReportController::class, 'destroy']);
         Route::get('/daily-reports/{dailyReport}/comments', [DailyReportController::class, 'comments']);
-        Route::post('/daily-reports/{dailyReport}/comments', [DailyReportController::class, 'storeComment'])->middleware('role:admin');
+        Route::post('/daily-reports/{dailyReport}/comments', [DailyReportController::class, 'storeComment']);
         Route::delete('/daily-reports/{dailyReport}/comments/{comment}', [DailyReportController::class, 'destroyComment']);
 
         // ── User Documents ─────────────────────────────────────────────────
@@ -237,6 +243,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/groups', [AdminGroupController::class, 'store']);
             Route::get('/groups/{group}', [AdminGroupController::class, 'show']);
             Route::match(['put', 'patch'], '/groups/{group}', [AdminGroupController::class, 'update']);
+            Route::post('/groups/{group}/members', [AdminGroupController::class, 'addMembers']);
 
             Route::get('/reports/export', [AdminReportController::class, 'export']);
             Route::get('/reports', [AdminReportController::class, 'index']);
@@ -246,7 +253,10 @@ Route::prefix('v1')->group(function () {
 
             Route::get('/activities/export', [AdminActivityController::class, 'export']);
             Route::get('/activities', [AdminActivityController::class, 'index']);
+            Route::post('/activities', [AdminActivityController::class, 'store']);
             Route::post('/activities/{activity}/complete', [AdminActivityController::class, 'complete']);
+
+            Route::get('/activity-logs', [AdminActivityLogController::class, 'index']);
         });
     });
 });

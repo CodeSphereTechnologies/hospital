@@ -302,7 +302,7 @@ export function UsersManagementPage() {
                   <TableRow key={user.id}>
                     <TableCell>
                       <Link to={`/admin/users/${user.id}`} className="flex items-center gap-3">
-                        <Avatar name={user.name} size="sm" />
+                        <Avatar name={user.name} src={user.avatar_url} size="sm" />
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-slate-800 hover:text-brand-700">
                             {user.name}

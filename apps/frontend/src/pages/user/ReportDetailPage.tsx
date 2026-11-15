@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
   CalendarDays,
@@ -10,47 +11,110 @@ import {
   Send,
 } from 'lucide-react'
 import { ReportStatusBadge, ScoreBadge } from '../../components/shared/StatusBadge'
+import { EmptyState } from '../../components/shared/EmptyState'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Avatar } from '../../components/ui/Avatar'
+import { Badge } from '../../components/ui/Badge'
 import { Progress, CircularProgress } from '../../components/ui/Progress'
 import { Textarea } from '../../components/ui/Textarea'
 import { useToast } from '../../components/ui/toast/ToastProvider'
-import { useAuth } from '../../features/auth/useAuth'
-import { reportComments, userReports } from '../../lib/mockData'
-import { formatDate, formatDateTime } from '../../lib/format'
+import { reportsApi } from '../../lib/api/endpoints'
+import { ApiError } from '../../lib/api/client'
+import { formatDate, formatDateTime, formatTime } from '../../lib/format'
 import type { ReportComment } from '../../types/domain'
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? error.message : fallback
+}
 
 export function ReportDetailPage() {
   const { id } = useParams<{ id: string }>()
   const toast = useToast()
-  const { user } = useAuth()
-  const report = userReports.find((item) => item.id === Number(id)) ?? userReports[0]
-  const [comments, setComments] = useState<ReportComment[]>(reportComments)
+  const queryClient = useQueryClient()
   const [comment, setComment] = useState('')
 
+  const reportQuery = useQuery({
+    queryKey: ['user', 'report', id],
+    queryFn: () => reportsApi.get(Number(id)),
+    enabled: Boolean(id),
+    staleTime: 15_000,
+  })
+
+  const commentsQuery = useQuery({
+    queryKey: ['user', 'report', id, 'comments'],
+    queryFn: () => reportsApi.comments(Number(id)),
+    enabled: Boolean(id),
+    staleTime: 15_000,
+  })
+
+  const addCommentMutation = useMutation({
+    mutationFn: (text: string) => reportsApi.addComment(Number(id), text),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['user', 'report', id] })
+      void queryClient.invalidateQueries({ queryKey: ['user', 'report', id, 'comments'] })
+      void queryClient.invalidateQueries({ queryKey: ['user', 'reports'] })
+      setComment('')
+      toast.success('Your reply was added.')
+    },
+    onError: (err) => {
+      toast.error(errorMessage(err, 'Could not add reply.'), 'Feedback failed')
+    },
+  })
+
+  if (!id) {
+    return (
+      <EmptyState
+        icon={ClipboardList}
+        title="Report not found"
+        description="No report identifier was provided."
+        action={
+          <Link to="/app/reports">
+            <Button variant="outline" size="sm">
+              Back to reports
+            </Button>
+          </Link>
+        }
+      />
+    )
+  }
+
+  if (reportQuery.isLoading) {
+    return <div className="py-16 text-center text-sm text-slate-500">Loading report…</div>
+  }
+
+  if (reportQuery.isError || !reportQuery.data) {
+    return (
+      <EmptyState
+        icon={ClipboardList}
+        title="Could not load this report"
+        description={errorMessage(reportQuery.error, 'The report could not be found or has been removed.')}
+        action={
+          <Link to="/app/reports">
+            <Button variant="outline" size="sm">
+              Back to report history
+            </Button>
+          </Link>
+        }
+      />
+    )
+  }
+
+  const report = reportQuery.data
+  const comments = commentsQuery.data ?? report.comments ?? []
   const scheduled = report.scheduled_count ?? 0
   const completed = report.completed_count ?? 0
   const score = report.calculated_score ?? 0
   const zeroEdgeCase = scheduled === 0
+  const activities = report.activities ?? []
 
-  const addComment = () => {
-    if (!comment.trim()) {
+  const handleAddComment = () => {
+    const text = comment.trim()
+    if (!text) {
       toast.error('Write a comment before sending.')
       return
     }
-    setComments((current) => [
-      ...current,
-      {
-        id: Date.now(),
-        author: user?.name ?? 'You',
-        role: 'User',
-        comment: comment.trim(),
-        created_at: new Date().toISOString(),
-      },
-    ])
-    setComment('')
-    toast.success('Your reply was added.')
+    addCommentMutation.mutate(text)
   }
 
   return (
@@ -79,6 +143,12 @@ export function ReportDetailPage() {
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <ReportStatusBadge status={report.status} />
             <ScoreBadge score={score} />
+            {report.submitted_at && (
+              <>
+                <span>·</span>
+                <span>Submitted at {formatDateTime(report.submitted_at)}</span>
+              </>
+            )}
           </div>
         </div>
         <Link to="/app/reports/new">
@@ -97,14 +167,14 @@ export function ReportDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm leading-relaxed text-slate-600">
-                {report.summary ?? 'No summary was provided.'}
+                {report.summary || 'No summary was provided.'}
               </p>
               <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                   Self assessment
                 </p>
                 <p className="mt-1.5 text-sm text-slate-600">
-                  {report.self_assessment ?? 'No self assessment provided.'}
+                  {report.self_assessment || 'No self assessment provided.'}
                 </p>
               </div>
             </CardContent>
@@ -159,6 +229,48 @@ export function ReportDetailPage() {
                   <Progress value={score} />
                 </div>
               )}
+
+              {activities.length > 0 && (
+                <div className="mt-4 overflow-hidden rounded-xl border border-slate-100">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 text-left text-[10px] uppercase tracking-wider text-slate-400">
+                      <tr>
+                        <th className="px-4 py-2.5 font-semibold">Activity</th>
+                        <th className="px-4 py-2.5 font-semibold">Time</th>
+                        <th className="px-4 py-2.5 font-semibold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {activities.map((activity) => (
+                        <tr key={activity.id}>
+                          <td className="px-4 py-2.5 text-slate-700">{activity.activity_title}</td>
+                          <td className="px-4 py-2.5 text-xs text-slate-500">
+                            {formatTime(activity.start_time)}
+                            {activity.end_time ? ` – ${formatTime(activity.end_time)}` : ''}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <Badge
+                              variant={
+                                activity.activity_status === 'completed'
+                                  ? 'success'
+                                  : activity.activity_status === 'missed'
+                                    ? 'destructive'
+                                    : 'info'
+                              }
+                            >
+                              {activity.activity_status === 'completed'
+                                ? 'Completed'
+                                : activity.activity_status === 'missed'
+                                  ? 'Missed'
+                                  : 'Pending'}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -187,7 +299,7 @@ export function ReportDetailPage() {
 
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base">Feedback</CardTitle>
+              <CardTitle className="text-base">Feedback & Discussion</CardTitle>
               <MessageSquare className="h-4 w-4 text-slate-400" />
             </CardHeader>
             <CardContent className="space-y-4">
@@ -195,20 +307,38 @@ export function ReportDetailPage() {
                 <p className="text-sm text-slate-500">No feedback yet.</p>
               ) : (
                 <div className="space-y-3">
-                  {comments.map((item) => (
-                    <div key={item.id} className="flex gap-2.5">
-                      <Avatar name={item.author} size="sm" />
-                      <div className="min-w-0 flex-1 rounded-xl bg-slate-50 p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-xs font-semibold text-slate-800">{item.author}</p>
-                          <span className="text-[10px] text-slate-400">
-                            {formatDateTime(item.created_at)}
-                          </span>
+                  {comments.map((item: ReportComment) => {
+                    const authorName =
+                      typeof item.author === 'string'
+                        ? item.author
+                        : item.author?.name ?? item.author_name ?? 'Administrator'
+                    const authorAvatar =
+                      typeof item.author === 'object'
+                        ? item.author?.avatar_url
+                        : item.avatar_url
+
+                    return (
+                      <div key={item.id} className="flex gap-2.5">
+                        <Avatar name={authorName} src={authorAvatar ?? undefined} size="sm" />
+                        <div className="min-w-0 flex-1 rounded-xl bg-slate-50 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="truncate text-xs font-semibold text-slate-800">
+                              {authorName}
+                              {item.role && (
+                                <span className="ml-1.5 text-[10px] font-normal text-slate-400">
+                                  ({item.role})
+                                </span>
+                              )}
+                            </p>
+                            <span className="text-[10px] text-slate-400">
+                              {formatDateTime(item.created_at)}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs leading-relaxed text-slate-600">{item.comment}</p>
                         </div>
-                        <p className="mt-1 text-xs leading-relaxed text-slate-600">{item.comment}</p>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
 
@@ -219,7 +349,13 @@ export function ReportDetailPage() {
                   onChange={(event) => setComment(event.target.value)}
                   className="min-h-20"
                 />
-                <Button size="sm" className="w-full" onClick={addComment}>
+                <Button
+                  size="sm"
+                  className="w-full"
+                  onClick={handleAddComment}
+                  isLoading={addCommentMutation.isPending}
+                  disabled={!comment.trim()}
+                >
                   <Send className="h-3.5 w-3.5" />
                   Add reply
                 </Button>

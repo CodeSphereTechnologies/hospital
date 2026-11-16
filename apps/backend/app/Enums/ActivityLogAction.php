@@ -22,6 +22,7 @@ enum ActivityLogAction: string
     case UserDeactivated = 'user_deactivated';
     case UserSuspended = 'user_suspended';
     case UserReinstated = 'user_reinstated';
+    case UserDeleted = 'user_deleted';
 
     // Group management
     case GroupCreated = 'group_created';
@@ -57,6 +58,7 @@ enum ActivityLogAction: string
             self::UserDeactivated => 'Deactivated member',
             self::UserSuspended => 'Suspended member',
             self::UserReinstated => 'Reinstated member',
+            self::UserDeleted => 'Deleted member',
             self::GroupCreated => 'Created group',
             self::GroupUpdated => 'Updated group',
             self::GroupMembersAdded => 'Added group members',
@@ -87,7 +89,8 @@ enum ActivityLogAction: string
             self::UserActivated,
             self::UserDeactivated,
             self::UserSuspended,
-            self::UserReinstated => 'users',
+            self::UserReinstated,
+            self::UserDeleted => 'users',
             self::GroupCreated,
             self::GroupUpdated,
             self::GroupMembersAdded => 'groups',

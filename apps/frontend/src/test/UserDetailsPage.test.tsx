@@ -5,6 +5,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { UserDetailsPage } from '../pages/admin/UserDetailsPage'
 import { ToastProvider } from '../components/ui/toast/ToastProvider'
 
+vi.mock('../features/auth/useAuth', () => ({
+  useAuth: vi.fn(() => ({
+    user: { id: 1, name: 'Admin User', role: 'admin' },
+  })),
+}))
+
 vi.mock('../lib/api/admin', () => ({
   adminApi: {
     users: {
@@ -85,6 +91,7 @@ describe('UserDetailsPage', () => {
     expect(screen.getByRole('button', { name: /edit profile/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /deactivate/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /suspend user/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /delete user/i })).toBeInTheDocument()
   })
 
   it('renders stats and about information', async () => {

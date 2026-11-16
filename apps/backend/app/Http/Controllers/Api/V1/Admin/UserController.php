@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -254,6 +255,35 @@ class UserController extends Controller
         return ApiResponse::success([
             'user' => new AdminUserResource($user),
         ], $user->suspended_at !== null ? 'User suspended.' : 'User suspension lifted.');
+    }
+
+    /**
+     * Delete a member account and its associated data.
+     */
+    public function destroy(Request $request, User $user): JsonResponse
+    {
+        if ($request->user()?->id === $user->id) {
+            return ApiResponse::error('You cannot delete your own account.', 422);
+        }
+
+        $name = $user->name;
+
+        $user->tokens()->delete();
+
+        if ($user->avatar_path !== null) {
+            Storage::disk('public')->delete($user->avatar_path);
+        }
+
+        $this->activityLogger->record(
+            ActivityLogAction::UserDeleted,
+            ($request->user()?->name ?? 'An administrator').' deleted '.$name.'\'s account.',
+            $request->user(),
+            $user,
+        );
+
+        $user->delete();
+
+        return ApiResponse::success(null, 'User deleted.');
     }
 
     /**

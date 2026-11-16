@@ -322,6 +322,15 @@ export const adminApi = {
       )
       return response.data.user
     },
+    delete: async (id: number | string): Promise<void> => {
+      await apiClient.delete<ApiEnvelope<null>>(`/api/v1/admin/users/${id}`)
+    },
+    remove: async (id: number | string): Promise<void> => {
+      await apiClient.delete<ApiEnvelope<null>>(`/api/v1/admin/users/${id}`)
+    },
+    destroy: async (id: number | string): Promise<void> => {
+      await apiClient.delete<ApiEnvelope<null>>(`/api/v1/admin/users/${id}`)
+    },
     export: (params?: { q?: string; role?: string; status?: string; group_id?: number | string }) =>
       downloadCsv(`/api/v1/admin/users/export${query(params)}`, `users-${stamp()}.csv`),
   },

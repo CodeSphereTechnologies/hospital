@@ -141,4 +141,47 @@ class AdminUserSuspensionTest extends TestCase
         $this->assertTrue($user->refresh()->is_active);
         $this->assertNull($user->suspended_at);
     }
+
+    public function test_admin_can_delete_a_user(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+        $user->createToken('session-token');
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->deleteJson("/api/v1/admin/users/{$user->id}");
+
+        $response->assertOk()
+            ->assertJsonPath('message', 'User deleted.');
+
+        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+    }
+
+    public function test_admin_cannot_delete_their_own_account(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->deleteJson("/api/v1/admin/users/{$admin->id}");
+
+        $response->assertStatus(422);
+
+        $this->assertDatabaseHas('users', ['id' => $admin->id]);
+    }
+
+    public function test_regular_user_cannot_delete_users(): void
+    {
+        $user = User::factory()->create();
+        $target = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $response = $this->deleteJson("/api/v1/admin/users/{$target->id}");
+
+        $response->assertStatus(403);
+
+        $this->assertDatabaseHas('users', ['id' => $target->id]);
+    }
 }

@@ -5,12 +5,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
   Download,
   Mail,
   Search,
   ShieldCheck,
+  Trash2,
   UserCheck,
   UserPlus,
   Users,
@@ -29,6 +31,7 @@ import { Progress } from '../../components/ui/Progress'
 import { Modal } from '../../components/ui/Modal'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table'
 import { useToast } from '../../components/ui/toast/ToastProvider'
+import { useAuth } from '../../features/auth/useAuth'
 import { adminApi, type AdminUserInput } from '../../lib/api/admin'
 import { ApiError } from '../../lib/api/client'
 import { useDebouncedValue } from '../../lib/useDebouncedValue'
@@ -55,6 +58,7 @@ function errorMessage(error: unknown, fallback: string): string {
 export function UsersManagementPage() {
   const toast = useToast()
   const queryClient = useQueryClient()
+  const { user: currentUser } = useAuth()
 
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebouncedValue(search, 300)
@@ -63,6 +67,7 @@ export function UsersManagementPage() {
   const [page, setPage] = useState(1)
   const [modalOpen, setModalOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null)
 
   const {
     register,
@@ -164,6 +169,23 @@ export function UsersManagementPage() {
     },
     onError: (error) => {
       toast.error(errorMessage(error, 'Could not update the account.'), 'Update failed')
+    },
+  })
+
+  const deleteUser = useMutation({
+    mutationFn: (user: AdminUser) => {
+      const remove = adminApi.users.delete ?? adminApi.users.remove ?? adminApi.users.destroy
+      return remove(user.id)
+    },
+    onSuccess: (_, deletedUser) => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'groups'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] })
+      toast.success(`${deletedUser.name} has been deleted.`, 'User deleted')
+      setUserToDelete(null)
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, 'Could not delete the user.'), 'Delete failed')
     },
   })
 
@@ -349,6 +371,19 @@ export function UsersManagementPage() {
                         >
                           {(user.is_active ?? user.status === 'active') ? 'Deactivate' : 'Activate'}
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={
+                            (deleteUser.isPending && deleteUser.variables?.id === user.id) ||
+                            user.id === currentUser?.id
+                          }
+                          title={user.id === currentUser?.id ? 'You cannot delete your own account' : 'Delete user'}
+                          onClick={() => setUserToDelete(user)}
+                          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                        >
+                          Delete
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -464,6 +499,53 @@ export function UsersManagementPage() {
             </span>
           </label>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(userToDelete)}
+        onClose={() => {
+          if (!deleteUser.isPending) {
+            setUserToDelete(null)
+          }
+        }}
+        title="Delete user"
+        description="Are you sure you want to delete this user? This action cannot be undone."
+        footer={
+          <>
+            <Button
+              variant="outline"
+              disabled={deleteUser.isPending}
+              onClick={() => setUserToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              isLoading={deleteUser.isPending}
+              onClick={() => {
+                if (userToDelete) {
+                  deleteUser.mutate(userToDelete)
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete user
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50/60 p-3.5 text-xs text-red-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+            <div>
+              <p className="font-semibold text-red-900">Permanent action</p>
+              <p className="mt-0.5">
+                Deleting <strong>{userToDelete?.name}</strong> ({userToDelete?.email}) will permanently
+                remove their account, revoke all active sessions, and remove their associated records.
+              </p>
+            </div>
+          </div>
+        </div>
       </Modal>
     </div>
   )

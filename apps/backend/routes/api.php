@@ -237,6 +237,7 @@ Route::prefix('v1')->group(function () {
             Route::match(['put', 'patch'], '/users/{user}', [AdminUserController::class, 'update']);
             Route::post('/users/{user}/toggle-status', [AdminUserController::class, 'toggleStatus']);
             Route::post('/users/{user}/toggle-suspension', [AdminUserController::class, 'toggleSuspension']);
+            Route::delete('/users/{user}', [AdminUserController::class, 'destroy']);
 
             Route::get('/groups/export', [AdminGroupController::class, 'export']);
             Route::get('/groups', [AdminGroupController::class, 'index']);

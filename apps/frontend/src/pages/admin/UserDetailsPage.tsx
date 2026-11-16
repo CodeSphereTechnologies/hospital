@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  AlertTriangle,
   ArrowLeft,
   Ban,
   CalendarDays,
@@ -12,6 +13,7 @@ import {
   Pencil,
   Phone,
   ShieldCheck,
+  Trash2,
   UserX,
 } from 'lucide-react'
 import { StatCard } from '../../components/shared/StatCard'
@@ -34,6 +36,7 @@ import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/Table'
 import { useToast } from '../../components/ui/toast/ToastProvider'
+import { useAuth } from '../../features/auth/useAuth'
 import { adminApi, type AdminUserInput } from '../../lib/api/admin'
 import { ApiError } from '../../lib/api/client'
 import { formatDate, formatDateTime, formatTime } from '../../lib/format'
@@ -52,11 +55,14 @@ function errorMessage(error: unknown, fallback: string): string {
 
 export function UserDetailsPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const toast = useToast()
   const queryClient = useQueryClient()
+  const { user: currentUser } = useAuth()
   const [tab, setTab] = useState('overview')
   const [editOpen, setEditOpen] = useState(false)
   const [suspendOpen, setSuspendOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [draft, setDraft] = useState<ProfileDraft>({
     name: '',
     email: '',
@@ -161,6 +167,21 @@ export function UserDetailsPage() {
     },
     onError: (error) => {
       toast.error(errorMessage(error, 'Could not update the suspension.'), 'Update failed')
+    },
+  })
+
+  const deleteUser = useMutation({
+    mutationFn: () => adminApi.users.delete(id ?? ''),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] })
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'groups'] })
+      toast.success(`${profile?.name ?? 'User'} has been deleted.`, 'User deleted')
+      setDeleteOpen(false)
+      navigate('/admin/users')
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, 'Could not delete the user.'), 'Delete failed')
     },
   })
 
@@ -269,6 +290,17 @@ export function UserDetailsPage() {
                 <Ban className="h-3.5 w-3.5" />
               )}
               {isSuspended ? 'Unsuspend user' : 'Suspend user'}
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deleteUser.isPending || (currentUser?.id != null && Number(id) === currentUser.id)}
+              title={currentUser?.id != null && Number(id) === currentUser.id ? 'You cannot delete your own account' : undefined}
+              className="bg-red-600 hover:bg-red-700 text-white shadow-sm border-none"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete user
             </Button>
           </div>
         </div>
@@ -511,6 +543,49 @@ export function UserDetailsPage() {
               ? 'Suspension is separate from deactivation, so the current active/inactive state is preserved.'
               : 'Suspension is separate from deactivation: this is not a status change and can be reversed later.'}
           </p>
+        </div>
+      </Modal>
+
+      <Modal
+        open={deleteOpen}
+        onClose={() => {
+          if (!deleteUser.isPending) {
+            setDeleteOpen(false)
+          }
+        }}
+        title="Delete user account"
+        description="Are you sure you want to delete this user? This action cannot be undone."
+        footer={
+          <>
+            <Button
+              variant="outline"
+              disabled={deleteUser.isPending}
+              onClick={() => setDeleteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              isLoading={deleteUser.isPending}
+              onClick={() => deleteUser.mutate()}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete user
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 rounded-xl border border-red-100 bg-red-50/60 p-3.5 text-xs text-red-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+            <div>
+              <p className="font-semibold text-red-900">Permanent action</p>
+              <p className="mt-0.5">
+                Deleting <strong>{profile.name}</strong> ({profile.email}) will permanently
+                remove their account, revoke all active sessions, and remove all associated reports, activities, and data.
+              </p>
+            </div>
+          </div>
         </div>
       </Modal>
 

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { cn } from '../../lib/utils'
 
 const palette = [
@@ -25,6 +26,16 @@ function colorFor(name: string) {
   return palette[sum % palette.length]
 }
 
+function normalizeAvatarUrl(url?: string | null): string | undefined {
+  if (!url) return undefined
+  // Normalize full localhost/external backend URLs pointing to /storage/ to relative path
+  const storageIndex = url.indexOf('/storage/')
+  if (storageIndex !== -1) {
+    return url.substring(storageIndex)
+  }
+  return url
+}
+
 interface AvatarProps {
   name: string
   src?: string | null
@@ -33,6 +44,9 @@ interface AvatarProps {
 }
 
 export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
+  const [imageError, setImageError] = useState(false)
+  const normalizedSrc = normalizeAvatarUrl(src)
+
   const sizes = {
     xs: 'h-6 w-6 text-[10px]',
     sm: 'h-8 w-8 text-xs',
@@ -41,11 +55,12 @@ export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
     xl: 'h-20 w-20 text-2xl',
   }
 
-  if (src) {
+  if (normalizedSrc && !imageError) {
     return (
       <img
-        src={src}
+        src={normalizedSrc}
         alt={name}
+        onError={() => setImageError(true)}
         className={cn('rounded-full object-cover ring-2 ring-white', sizes[size], className)}
       />
     )

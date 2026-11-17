@@ -249,43 +249,43 @@ export function DigitalLibraryPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <Card>
-          <CardContent className="flex items-center gap-3 p-5">
+          <CardContent className="flex items-center gap-4 p-6 sm:p-7">
             <span className="rounded-xl bg-brand-50 p-2.5 text-brand-600">
               <Library className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Resources
               </p>
-              <p className="text-xl font-bold text-slate-900">{resources.length}</p>
+              <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{resources.length}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-3 p-5">
+          <CardContent className="flex items-center gap-4 p-6 sm:p-7">
             <span className="rounded-xl bg-amber-50 p-2.5 text-amber-600">
               <BookmarkCheck className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Bookmarked
               </p>
-              <p className="text-xl font-bold text-slate-900">{bookmarkCount}</p>
+              <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{bookmarkCount}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-3 p-5">
+          <CardContent className="flex items-center gap-4 p-6 sm:p-7">
             <span className="rounded-xl bg-sky-50 p-2.5 text-sky-600">
               <BookOpen className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Categories
               </p>
-              <p className="text-xl font-bold text-slate-900">
+              <p className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
                 {new Set(resources.map((resource) => resource.category)).size}
               </p>
             </div>
@@ -294,7 +294,7 @@ export function DigitalLibraryPage() {
       </div>
 
       <Card>
-        <CardContent className="space-y-4 p-5 sm:p-6">
+        <CardContent className="space-y-4 p-6 sm:p-7">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -387,7 +387,7 @@ export function DigitalLibraryPage() {
               }
             />
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
               {filtered.map((resource) => {
                 const meta = fileTypeMeta[resource.file_type]
                 const Icon = meta.icon
@@ -395,7 +395,7 @@ export function DigitalLibraryPage() {
                 return (
                   <article
                     key={resource.id}
-                    className="group flex flex-col rounded-2xl border border-slate-200/80 bg-white p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-card"
+                    className="group flex flex-col rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-7 shadow-soft transition-all hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-card"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <span className={cn('rounded-xl p-2.5', meta.className)}>
@@ -532,7 +532,7 @@ export function DigitalLibraryPage() {
         </form>
       </Modal>
 
-      <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-4 text-xs text-slate-500 shadow-soft">
+      <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 text-xs text-slate-500 shadow-soft">
         <Plus className="h-4 w-4 text-brand-500" />
         Administrators can share resources with specific groups. Everyone can bookmark resources for
         quick access later.

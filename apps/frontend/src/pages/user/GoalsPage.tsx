@@ -133,7 +133,7 @@ export function GoalsPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <StatCard label="Active goals" value={stats.active} icon={Target} hint="in progress" />
         <StatCard
           label="Average progress"
@@ -171,7 +171,7 @@ export function GoalsPage() {
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map((goal) => (
           <Card key={goal.id} className="flex flex-col transition-shadow hover:shadow-card">
-            <CardContent className="flex flex-1 flex-col p-5">
+            <CardContent className="flex flex-1 flex-col p-6 sm:p-7">
               <div className="flex items-start justify-between gap-3">
                 <span className="rounded-xl bg-brand-50 p-2.5 text-brand-600">
                   <Target className="h-4 w-4" />

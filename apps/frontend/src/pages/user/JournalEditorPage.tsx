@@ -11,7 +11,7 @@ import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { Textarea } from '../../components/ui/Textarea'
 import { useToast } from '../../components/ui/toast/ToastProvider'
-import { journalEntries } from '../../lib/mockData'
+import { getJournalEntry, saveJournalEntry, deleteJournalEntry, ALL_MOODS } from '../../lib/journalStorage'
 import { formatDate, todayISO } from '../../lib/format'
 
 const journalSchema = z.object({
@@ -23,7 +23,7 @@ const journalSchema = z.object({
 
 type JournalValues = z.infer<typeof journalSchema>
 
-const moodOptions = ['Grateful', 'Reflective', 'Calm', 'Tired', 'Energised', 'Hopeful', 'Struggling']
+const moodOptions = ALL_MOODS.map((m) => m.label)
 
 const prompts = [
   'What went well today, and why?',
@@ -38,7 +38,7 @@ export function JournalEditorPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const isEdit = Boolean(id)
-  const existing = isEdit ? journalEntries.find((entry) => entry.id === Number(id)) : undefined
+  const existing = isEdit ? getJournalEntry(Number(id)) : undefined
   const [prompt, setPrompt] = useState(0)
 
   const {
@@ -72,14 +72,27 @@ export function JournalEditorPage() {
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0
 
   const onSubmit = async (values: JournalValues) => {
-    await new Promise((resolve) => setTimeout(resolve, 350))
-    void values
-    toast.success(isEdit ? 'Journal entry updated.' : 'Journal entry saved.', 'Saved')
-    navigate('/app/journal')
+    try {
+      saveJournalEntry({
+        id: existing?.id,
+        title: values.title,
+        mood: values.mood,
+        entry_date: values.entry_date,
+        content: values.content,
+        tags: existing?.tags || [],
+      })
+      toast.success(isEdit ? 'Journal entry updated.' : 'Journal entry saved.', 'Saved')
+      navigate('/app/journal')
+    } catch {
+      toast.error('Could not save journal entry. Please try again.')
+    }
   }
 
   const onDelete = () => {
-    toast.info('Journal entry removed. This cannot be undone.')
+    if (existing) {
+      deleteJournalEntry(existing.id)
+    }
+    toast.info('Journal entry removed.', 'Deleted')
     navigate('/app/journal')
   }
 

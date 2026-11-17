@@ -122,7 +122,7 @@ export function HabitsPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <StatCard label="Active habits" value={stats.total} icon={Repeat} hint="tracked this week" />
         <StatCard
           label="Consistency"
@@ -146,7 +146,7 @@ export function HabitsPage() {
           const done = habit.completed_days >= habit.target_per_week
           return (
             <Card key={habit.id} className={cn('transition-shadow hover:shadow-card', done && 'border-emerald-200')}>
-              <CardContent className="p-5">
+              <CardContent className="p-6 sm:p-7">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
                     <span

@@ -210,18 +210,18 @@ export function GroupsManagementPage() {
               const accent = accentMap[group.color ?? 'brand'] ?? accentMap.brand
               return (
                 <Card key={group.id} className="group transition-all hover:-translate-y-0.5 hover:shadow-card">
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className={cn('rounded-xl p-2.5', accent.bg, accent.text)}>
+                  <CardContent className="p-6 sm:p-7">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className={cn('rounded-xl p-3', accent.bg, accent.text)}>
                         <UsersRound className="h-5 w-5" />
                       </div>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                      <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                         {group.members_count} members
                       </span>
                     </div>
 
-                    <h3 className="mt-4 text-lg font-semibold text-slate-900">{group.name}</h3>
-                    <p className="mt-1 line-clamp-2 min-h-10 text-sm text-slate-500">
+                    <h3 className="mt-5 text-lg font-semibold text-slate-900">{group.name}</h3>
+                    <p className="mt-1.5 line-clamp-2 min-h-10 text-sm text-slate-500">
                       {group.description || 'No description yet.'}
                     </p>
 

@@ -266,7 +266,7 @@ export function ActivityFormPage() {
           </Card>
 
           <Card>
-            <CardContent className="space-y-2 p-5 text-xs text-slate-500">
+            <CardContent className="space-y-3 p-6 sm:p-7 text-xs text-slate-500">
               <p className="flex items-center gap-2 font-semibold text-slate-700">
                 <CalendarDays className="h-4 w-4 text-brand-600" />
                 {errors.scheduled_date ? 'Date needs attention' : 'Scheduling works offline'}

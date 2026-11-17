@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   Bell,
+  Camera,
   CheckCircle2,
   Compass,
   KeyRound,
@@ -73,7 +75,10 @@ const calculationMethods = [
 export function UserSettingsPage() {
   const { user } = useAuth()
   const toast = useToast()
+  const queryClient = useQueryClient()
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   const [tab, setTab] = useState('profile')
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [notifications, setNotifications] = useState({
     prayerReminders: true,
     activityReminders: true,
@@ -167,6 +172,28 @@ export function UserSettingsPage() {
     setNotifications((current) => ({ ...current, [key]: !current[key] }))
   }
 
+  const onAvatarSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    setUploadingAvatar(true)
+    try {
+      await authApi.updateAvatar(file)
+      await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
+      toast.success('Your profile picture has been updated.', 'Photo saved')
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const avatarError = err.errors?.avatar?.[0]
+        toast.error(avatarError ?? err.message, 'Could not update photo')
+      } else {
+        toast.error('The upload service is unavailable right now.', 'Could not update photo')
+      }
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -177,33 +204,64 @@ export function UserSettingsPage() {
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <Card className="xl:col-span-1">
-          <CardContent className="flex flex-col items-center p-6 text-center">
-            <Avatar name={user?.name ?? 'Member'} size="xl" className="ring-4 ring-brand-50" />
-            <h2 className="mt-4 text-lg font-semibold text-slate-900">
+          <CardContent className="flex flex-col items-center p-6 sm:p-7 text-center">
+            <div className="relative">
+              <Avatar
+                name={user?.name ?? 'Member'}
+                src={user?.avatar_url}
+                size="xl"
+                className="ring-4 ring-brand-50"
+              />
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                aria-label="Change profile picture"
+                className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-brand-600 text-white shadow-sm transition-colors hover:bg-brand-700 disabled:opacity-60"
+              >
+                <Camera className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={onAvatarSelected}
+            />
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              className="mt-3 text-xs font-semibold text-brand-700 hover:text-brand-800 disabled:opacity-60"
+            >
+              {uploadingAvatar ? 'Uploading…' : 'Change photo'}
+            </button>
+            <h2 className="mt-3 text-lg font-semibold text-slate-900">
               {user?.name ?? 'Member'}
             </h2>
-            <p className="text-sm text-slate-500">{user?.email ?? 'member@example.com'}</p>
+            <p className="mt-0.5 text-sm text-slate-500">{user?.email ?? 'member@example.com'}</p>
             <Badge variant="success" className="mt-3" dot>
               Active member
             </Badge>
-            <div className="mt-5 w-full space-y-2.5 text-left text-sm">
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
-                <span className="inline-flex items-center gap-1.5 text-slate-500">
-                  <Moon className="h-3.5 w-3.5" /> Group
+            <div className="mt-6 w-full space-y-3 text-left text-sm">
+              <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+                <span className="inline-flex items-center gap-2 text-slate-500">
+                  <Moon className="h-4 w-4 text-slate-400" /> Group
                 </span>
-                <span className="font-semibold text-slate-700">Morning Circle</span>
+                <span className="font-semibold text-slate-800">Morning Circle</span>
               </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
-                <span className="inline-flex items-center gap-1.5 text-slate-500">
-                  <Compass className="h-3.5 w-3.5" /> Timezone
+              <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+                <span className="inline-flex items-center gap-2 text-slate-500">
+                  <Compass className="h-4 w-4 text-slate-400" /> Timezone
                 </span>
-                <span className="font-semibold text-slate-700">
+                <span className="font-semibold text-slate-800">
                   {profileForm.watch('timezone')}
                 </span>
               </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
-                <span className="inline-flex items-center gap-1.5 text-slate-500">
-                  <ShieldCheck className="h-3.5 w-3.5" /> Status
+              <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+                <span className="inline-flex items-center gap-2 text-slate-500">
+                  <ShieldCheck className="h-4 w-4 text-slate-400" /> Status
                 </span>
                 <span className="font-semibold text-emerald-600">Verified</span>
               </div>

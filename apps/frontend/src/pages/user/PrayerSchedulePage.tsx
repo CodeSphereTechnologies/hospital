@@ -190,7 +190,7 @@ export function PrayerSchedulePage() {
 
           <div className="space-y-5">
             <Card className="overflow-hidden">
-              <div className="bg-gradient-to-br from-brand-600 to-brand-800 p-5 text-white">
+              <div className="bg-gradient-to-br from-brand-600 to-brand-800 p-6 text-white">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-100">
                   <Compass className="h-4 w-4" />
                   Qibla direction
@@ -198,7 +198,7 @@ export function PrayerSchedulePage() {
                 <p className="mt-3 text-3xl font-bold">119°</p>
                 <p className="text-sm text-brand-100">Southeast from your location</p>
               </div>
-              <CardContent className="space-y-2 p-4 text-sm text-slate-600">
+              <CardContent className="space-y-3 p-6 text-sm text-slate-600">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500">Location</span>
                   <span className="font-medium text-slate-700">London, UK</span>

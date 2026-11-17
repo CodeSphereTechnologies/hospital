@@ -5,12 +5,15 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   Bell,
+  Calendar,
   Camera,
   CheckCircle2,
+  ClipboardList,
   KeyRound,
   Save,
   ShieldCheck,
   User as UserIcon,
+  UsersRound,
 } from 'lucide-react'
 import { PageHeader } from '../../components/shared/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/Card'
@@ -194,13 +197,13 @@ export function AdminProfileSettingsPage() {
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <Card className="xl:col-span-1">
-          <CardContent className="flex flex-col items-center p-6 text-center">
+          <CardContent className="flex flex-col items-center p-6 sm:p-7 text-center">
             <div className="relative">
               <Avatar
                 name={user?.name ?? 'Administrator'}
                 src={user?.avatar_url}
                 size="xl"
-                className="ring-4 ring-brand-50"
+                className="ring-4 ring-brand-100/60 shadow-soft"
               />
               <button
                 type="button"
@@ -223,33 +226,42 @@ export function AdminProfileSettingsPage() {
               type="button"
               onClick={() => avatarInputRef.current?.click()}
               disabled={uploadingAvatar}
-              className="mt-3 text-xs font-semibold text-brand-700 hover:text-brand-800 disabled:opacity-60"
+              className="mt-3.5 text-xs font-semibold text-brand-700 hover:text-brand-800 disabled:opacity-60"
             >
               {uploadingAvatar ? 'Uploading…' : 'Change photo'}
             </button>
-            <h2 className="mt-2 text-lg font-semibold text-slate-900">
+            <h2 className="mt-3 text-lg font-bold text-slate-900">
               {user?.name ?? 'Administrator'}
             </h2>
-            <p className="text-sm text-slate-500">{user?.email ?? 'admin@thinkcode.dev'}</p>
-            <Badge variant="default" className="mt-3">
-              <ShieldCheck className="mr-1 h-3 w-3" />
+            <p className="mt-0.5 text-sm text-slate-500">{user?.email ?? 'admin@thinkcode.dev'}</p>
+            <Badge variant="default" className="mt-3 px-3 py-1">
+              <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
               Administrator
             </Badge>
-            <div className="mt-5 w-full space-y-2.5 text-left text-sm">
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
-                <span className="text-slate-500">Member since</span>
-                <span className="font-semibold text-slate-700">{memberSince}</span>
+            <div className="mt-6 w-full space-y-3 text-left text-sm">
+              <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+                <span className="inline-flex items-center gap-2 text-slate-500">
+                  <Calendar className="h-4 w-4 text-slate-400" />
+                  Member since
+                </span>
+                <span className="font-semibold text-slate-800">{memberSince}</span>
               </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
-                <span className="text-slate-500">Groups managed</span>
-                <span className="font-semibold text-slate-700">
-                  {groupsManaged ?? '—'}
+              <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+                <span className="inline-flex items-center gap-2 text-slate-500">
+                  <UsersRound className="h-4 w-4 text-slate-400" />
+                  Groups managed
+                </span>
+                <span className="font-semibold text-slate-800">
+                  {groupsSummaryQuery.isLoading ? '…' : (groupsManaged ?? 0)}
                 </span>
               </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
-                <span className="text-slate-500">Reports reviewed</span>
-                <span className="font-semibold text-slate-700">
-                  {reportsReviewed ?? '—'}
+              <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+                <span className="inline-flex items-center gap-2 text-slate-500">
+                  <ClipboardList className="h-4 w-4 text-slate-400" />
+                  Reports reviewed
+                </span>
+                <span className="font-semibold text-slate-800">
+                  {reportsSummaryQuery.isLoading ? '…' : (reportsReviewed ?? 0)}
                 </span>
               </div>
             </div>
@@ -274,8 +286,8 @@ export function AdminProfileSettingsPage() {
                 <CardDescription>This information is visible to your team.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleProfileSubmit(onSaveProfile)} className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <form onSubmit={handleProfileSubmit(onSaveProfile)} className="space-y-5">
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <Input label="Full name" error={profileErrors.name?.message} {...registerProfile('name')} />
                     <Input
                       label="Email address"
@@ -291,7 +303,7 @@ export function AdminProfileSettingsPage() {
                     error={profileErrors.bio?.message}
                     {...registerProfile('bio')}
                   />
-                  <div className="flex justify-end">
+                  <div className="flex justify-end pt-2">
                     <Button type="submit" isLoading={savingProfile}>
                       <Save className="h-4 w-4" />
                       Save changes
@@ -308,7 +320,7 @@ export function AdminProfileSettingsPage() {
                 <CardTitle>Notification preferences</CardTitle>
                 <CardDescription>Choose what you want to be notified about.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent className="space-y-2">
                 {[
                   {
                     key: 'reportEmails' as const,
@@ -338,7 +350,7 @@ export function AdminProfileSettingsPage() {
                 ].map((item) => (
                   <label
                     key={item.key}
-                    className="flex cursor-pointer items-start justify-between gap-4 rounded-xl px-2 py-3 transition-colors hover:bg-slate-50"
+                    className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-transparent p-3.5 transition-colors hover:border-slate-200/60 hover:bg-slate-50/80"
                   >
                     <span className="min-w-0">
                       <span className="block text-sm font-medium text-slate-800">{item.title}</span>
@@ -368,7 +380,7 @@ export function AdminProfileSettingsPage() {
                 <CardDescription>Use a strong password you don&apos;t use elsewhere.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handlePasswordSubmit(onChangePassword)} className="space-y-4">
+                <form onSubmit={handlePasswordSubmit(onChangePassword)} className="space-y-5">
                   <Input
                     label="Current password"
                     type="password"
@@ -376,7 +388,7 @@ export function AdminProfileSettingsPage() {
                     error={passwordErrors.current_password?.message}
                     {...registerPassword('current_password')}
                   />
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <Input
                       label="New password"
                       type="password"
@@ -392,10 +404,10 @@ export function AdminProfileSettingsPage() {
                       {...registerPassword('password_confirmation')}
                     />
                   </div>
-                  <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
+                  <p className="rounded-xl border border-slate-100 bg-slate-50/80 p-3.5 text-xs text-slate-500">
                     Password changes sign you out of other devices after 24 hours.
                   </p>
-                  <div className="flex justify-end">
+                  <div className="flex justify-end pt-2">
                     <Button type="submit" isLoading={savingPassword}>
                       <KeyRound className="h-4 w-4" />
                       Update password

@@ -24,9 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(AssignRequestId::class);
         $middleware->trustProxies(at: '*');
-        $middleware->trustProxies(at: '*');
-        $middleware->trustProxies(at: '*');
         $middleware->statefulApi();
+        $middleware->redirectGuestsTo(fn () => null);
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'not-suspended' => EnsureAccountIsNotSuspended::class,
@@ -64,6 +63,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (ValidationException $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 return ApiResponse::error($e->getMessage(), $e->status, $e->errors());
+            }
+        });
+
+        $exceptions->render(function (\Symfony\Component\Routing\Exception\RouteNotFoundException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return ApiResponse::error('Unauthenticated.', 401);
             }
         });
     })->create();

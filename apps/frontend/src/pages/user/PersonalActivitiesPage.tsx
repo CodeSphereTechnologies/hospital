@@ -76,7 +76,7 @@ export function PersonalActivitiesPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <StatCard label="All activities" value={counts.total} icon={ActivityIcon} hint="in your plan" />
         <StatCard
           label="Completed"

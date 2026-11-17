@@ -237,7 +237,7 @@ export function HealthFitnessPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Weight"
           value={`${(latest?.weight_kg ?? 0).toFixed(1)} kg`}
@@ -500,7 +500,7 @@ export function HealthFitnessPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         {[
           {
             label: 'Weekly water average',
@@ -524,15 +524,15 @@ export function HealthFitnessPage() {
           const Icon = item.icon
           return (
             <Card key={item.label}>
-              <CardContent className="flex items-center gap-3 p-5">
+              <CardContent className="flex items-center gap-4 p-6 sm:p-7">
                 <span className="rounded-xl bg-brand-50 p-2.5 text-brand-600">
                   <Icon className="h-5 w-5" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                     {item.label}
                   </p>
-                  <p className="truncate text-lg font-bold text-slate-900">{item.value}</p>
+                  <p className="mt-1 truncate text-xl font-bold text-slate-900">{item.value}</p>
                   <p className="text-xs text-slate-500">{item.hint}</p>
                 </div>
               </CardContent>
@@ -569,7 +569,7 @@ export function HealthFitnessPage() {
             error={healthForm.formState.errors.record_date?.message}
             {...healthForm.register('record_date')}
           />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
             <Input
               label="Weight (kg)"
               type="number"
@@ -684,7 +684,7 @@ export function HealthFitnessPage() {
         </form>
       </Modal>
 
-      <div className="flex items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-4 text-xs text-slate-500 shadow-soft">
+      <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 text-xs text-slate-500 shadow-soft">
         <CalendarDays className="h-4 w-4 text-brand-500" />
         Records are private to your account. Health data is never shared with your group.
       </div>

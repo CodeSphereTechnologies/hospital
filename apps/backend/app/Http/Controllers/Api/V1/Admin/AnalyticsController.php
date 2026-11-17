@@ -74,7 +74,7 @@ class AnalyticsController extends Controller
             ->where('scheduled_date', '>=', $from->toDateString())
             ->selectRaw('scheduled_date, count(*) as total')
             ->groupBy('scheduled_date')
-            ->orderByDesc('total')
+            ->orderByRaw('count(*) desc')
             ->first();
 
         $mostConsistent = DB::table('group_user')
@@ -83,7 +83,7 @@ class AnalyticsController extends Controller
             ->where('daily_reports.report_date', '>=', now()->subDays(30)->toDateString())
             ->selectRaw('group_user.group_id, avg(daily_reports.calculated_score) as average_score')
             ->groupBy('group_user.group_id')
-            ->orderByDesc('average_score')
+            ->orderByRaw('avg(daily_reports.calculated_score) desc')
             ->first();
 
         return ApiResponse::success([

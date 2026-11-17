@@ -317,16 +317,16 @@ export function AnalyticsPage() {
               const Icon = item.icon
               return (
                 <Card key={item.label}>
-                  <CardContent className="flex items-center gap-3 p-5">
-                    <div className="rounded-xl bg-brand-50 p-2.5 text-brand-600">
+                  <CardContent className="flex items-center gap-4 p-6 sm:p-7">
+                    <div className="rounded-xl bg-brand-50 p-3 text-brand-600">
                       <Icon className="h-5 w-5" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                         {item.label}
                       </p>
-                      <p className="truncate text-lg font-bold text-slate-900">{item.value}</p>
-                      <p className="text-xs text-slate-500">{item.hint}</p>
+                      <p className="truncate text-xl font-bold text-slate-900">{item.value}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">{item.hint}</p>
                     </div>
                   </CardContent>
                 </Card>

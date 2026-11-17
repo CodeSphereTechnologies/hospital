@@ -91,7 +91,7 @@ export function ReportHistoryPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <StatCard label="Reports submitted" value={stats.submitted} icon={ClipboardList} hint="all time" />
         <StatCard
           label="Average score"
@@ -130,7 +130,7 @@ export function ReportHistoryPage() {
       </Card>
 
       <Card>
-        <CardContent className="space-y-4 p-5 sm:p-6">
+        <CardContent className="space-y-4 p-6 sm:p-7">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
